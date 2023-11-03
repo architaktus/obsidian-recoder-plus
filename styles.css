@@ -1,8 +1,206 @@
+:root{
+  --button-background-color: #5bb47c;
+  --button-text-color: #ffffff;
+  --button-border-color:#607a2a;
+  --button-border-radius: 5px;
+  --button-box-shadow-color: rgb(210, 210, 210);
+  
+  
+  --modal-border-color:#b6b6b6;
+  --modal-background-color:rgb(243, 243, 243);
+  --modal-border-radius:8px;
+}
+
 /*
-
-This CSS file will be included with your plugin, and
-available in the app when your plugin is enabled.
-
-If your plugin does not need CSS, delete this file.
-
+Obsidian
+--color-base-00: #ffffff
+--color-base-05: #fcfcfc
+--color-base-10: #fafafa
+--color-base-20: #f6f6f6
+--color-base-25: #e3e3e3
+--color-base-30: #e0e0e0
+--color-base-35: #d4d4d4
+--color-base-40: #bdbdbd
+--color-base-50: #ababab
+--color-base-60: #707070
+--color-base-70: #5c5c5c
+--color-base-100:#222222
 */
+
+
+/*----------------Settings----------------------*/
+  .text-container .section-header {
+    margin-top: 24; /*16*/
+    margin-bottom: 0;
+  }
+
+  .group-header {
+    margin-top: 0; 
+    margin-bottom: 16;
+  }
+
+
+
+
+/*----------------Viewer----------------------*/
+.select-wrapper {
+    position: relative;
+    display: inline-block;
+}
+
+.select-wrapper select {
+    appearance: none;     
+    background-color: transparent;
+    border: none;
+    width: 18px; /* 选择框 */
+}
+
+.player-ui-arrow{
+  right: 12px; /* 箭头位置 */
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid black; /* 箭头up */
+  pointer-events: none; /* 防止遮挡其他元素的点击事件 */
+}
+
+
+
+/*----------------Modal----------------------*/
+.modalPart{
+  margin-top: 8px;
+}
+
+.with-border{
+  border: 1px solid var(--modal-border-color);
+  background-color: var(--modal-background-color);
+  border-radius: var(--modal-border-radius, 8px);
+  padding: 10px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+border-dotted{
+  border: 1px dotted var(--modal-border-color);
+}
+
+.modalPart.heading{
+  margin-top: 5px;  
+}
+
+.modalPart.remark-text{
+  font-size: 12px;
+  color:#707070;
+}
+
+.recorder-note {
+  margin-top: 0;
+  margin-bottom: 0;
+  margin-right: 10px;
+}
+
+
+
+.previewBox{
+  border: 1px dotted var(--modal-border-color);
+  border-radius: var(--modal-border-radius);
+  padding: 10px;
+  margin-top: 10px;
+  /*margin-bottom: 10px;*/
+  display: inline-block;
+  width: 100%;
+  max-width: 100%;
+}
+
+.horizontal-align-margin{
+  margin-right: 10px;
+}
+
+.no-top-margin{
+  margin-top: 0;
+}
+
+.no-bottom-margin{
+  margin-bottom: 0;
+}
+
+
+.flexbox-right-align{
+  display: flex;
+  justify-content: flex-end;
+}
+
+.flexbox-left-align{
+  display: flex;
+  justify-content: flex-start;
+}
+
+.flexbox-center-align{
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.timestamp-hh-mm-ss{
+  width: 25%;
+  margin-left: 3px;
+  margin-right: 3px;
+}
+
+.button-arrow-container{
+  display: grid;
+  height: 15px;
+  align-content: start;
+}
+
+
+.button-arrow{
+  width: 100%;
+  height: 100%;
+}
+
+.ui-arrow{
+  /*position: absolute;*/
+  /*top: 50%;  */
+  width: 0;
+  height: 0;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  pointer-events: none; /* 防止遮挡其他元素的点击事件 */
+}
+
+.arrow-timestamp-down {
+  transform: translateY(120%) translateX(120%);
+  border-top: 5px solid rgb(70, 70, 70); /* 箭头down */
+}
+
+.arrow-timestamp-up {
+  transform: translateY(120%) translateX(120%);
+  border-bottom: 5px solid rgb(70, 70, 70); /* 箭头up */
+}
+
+
+input.disabled-field{
+  background-color: #e9e9e9;
+}
+
+div[data-type="video-view"] audio {
+  height: inherit !important;
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
