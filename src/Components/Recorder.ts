@@ -7,7 +7,7 @@ import fixWebmMetaInfo from "@w-xuefeng/fix-webm-metainfo";
 import TimestampPlugin from "src/main";
 import * as consts from "src/consts";
 import { AfterRecordModal } from "./UI&Menu/modal";
-import { CopyToClipboard, convertSecondsToTimestamp } from "./utils";
+import * as utl from "./utils";
 
 
 
@@ -62,8 +62,6 @@ export class RecorderView extends ItemView {
         return "microphone";
     }
 
-
-
     async onOpen() {
         const containerWrap = this.containerEl.children[1];
         containerWrap.empty();
@@ -75,15 +73,13 @@ export class RecorderView extends ItemView {
         const recordState = stateDiv.createEl('p', "recorder-note remark-text");    
         const recordTimer = stateDiv.createEl('p', "recorder-note remark-text");
         updateRecordstateText(this.plugin.recorderState, recordState);
-        updateTimerShowState(this, this.plugin.recorderState, recordTimer); 
-        
-        
+        updateTimerShowState(this, this.plugin.recorderState, recordTimer);         
         
         const configDiv = container.createEl("div");
         configDiv.style.textAlign = "center";
         
         //const audio_tag = mainRecorderDiv.createEl("audio");        
-        const microphones = await getDevices();
+        const microphones = await utl.getDevices();
         createSelectMc(
             microphones, 
             (id)=>{this.selectedMicrophoneId = id;},
@@ -105,10 +101,10 @@ export class RecorderView extends ItemView {
                             this.currentRecordingFileName = handleRecordingFileName(this.plugin);                        
                             //this.ticker = 0;
                             //this.chunksIndex = 0;
-                            this.mediaStream = await navigator.mediaDevices.getUserMedia(constraints(this));
+                            this.mediaStream = await navigator.mediaDevices.getUserMedia(utl.constraints(this));
                             this.recorder = new MediaRecorder(this.mediaStream, {
                                 audioBitsPerSecond: this.selectedAudioBitsperSec,
-                                mimeType: "audio/" + audioExt() + ";codecs=opus",
+                                mimeType: "audio/" + utl.audioExt() + ";codecs=opus",
                             });
                             this.recorder.start(consts.RECORDER_TIMESCLICE); 
                             this.recorder.ondataavailable = (e) => this.chunks.push(e.data);
@@ -197,87 +193,6 @@ export class RecorderView extends ItemView {
 
 ////////////////////////////////////////////
 //widget
-/**
- * seems that ob only support max. 260kbps
- */
-const audioBitsPerSecond= new Map<string,number>([
-    ['kbps 64', 64000],
-    ['kbps 128', 128000],
-    ['kbps 192', 192000],
-    ['kbps 320', 320000],
-    ['kbps 512', 512000],
-    ['kbps 1411', 1411000]
-]);
-
-// https://developer.mozilla.org/en-US/docs/Web/API/MediaDevices/getUserMedia
-const streamOptions = {
-    audioBitsPerSecond: 512000,
-    //videoBitsPerSecond: 2500000,
-    //bitsPerSecond: 2628000,
-    mimeType: "audio/" + audioExt() + ";codecs=opus",
-}
-
-function audioExt ():string{
-    let extension: string;
-    if (MediaRecorder.isTypeSupported("audio/webm;codecs=opus")) {
-        extension = "webm";
-    } else {
-        extension = "ogg";
-    }
-    return extension;
-}
-
-/** for getUserMedia */
-function constraints(view:RecorderView){
-    return {
-        audio:{
-            deviceId: view.selectedMicrophoneId?view.selectedMicrophoneId:'default',
-            //TODO: check navigator.mediaDevices.getSupportedConstraints()& setting开启设置, 开启下述内容
-            //sampleRate: 48000,
-            // 16/24 位
-            //sampleSize: 24,
-            //声道数量
-            //channelCount: 2,
-            //回声消除
-            //echoCancellation: false, 
-            //自动增益
-            //autoGainControl: false,
-            //降噪
-            //noiseSuppression: false,
-            //延迟期望
-            //latency: 0.01,
-        }
-    }
-
-}
-
-
-
-
-
-//: Promise<string[]>
-async function getDevices(): Promise<Map<string, string>> {
-    let microphonesMap = new Map<string, string>();
-
-    if (!navigator.mediaDevices?.enumerateDevices) {
-        console.log("enumerateDevices() not supported.");
-        new Notice ('no Recorder Devices');        
-    } else {
-        // List microphones.
-        const microphones = (
-            await navigator.mediaDevices.enumerateDevices()
-        ).filter((d) => d.kind === "audioinput" && d.deviceId !== 'communications');
-
-        
-        microphones.map((mc)=>{
-            microphonesMap.set(mc.deviceId, mc.label || "Unknown microphone");            
-        })
-        return microphonesMap;
-  }
-}
-
-  
-
 
 function createSelectMc(optionsMap: Map<string, string>, callback:(selected:string)=>void, parent?:HTMLElement): HTMLSelectElement{
 	const selectEl = document.createElement('select');
@@ -318,7 +233,7 @@ function createSelectMc(optionsMap: Map<string, string>, callback:(selected:stri
 		const selected = (e.target as HTMLSelectElement).value;
         if(selected ==="update"){
             removeAllOptions(selectEl);
-            const newOptionsMap = await getDevices();
+            const newOptionsMap = await utl.getDevices();
             addChild(newOptionsMap);
         } else {            
             callback(selected);
@@ -333,8 +248,8 @@ function createSelectMc(optionsMap: Map<string, string>, callback:(selected:stri
 function createSelectAudioBitperSec(callback:(selected:string)=>void, parent?:HTMLElement): HTMLSelectElement{
 	const selectEl = document.createElement('select');
         
-    for (let rate of audioBitsPerSecond.keys()){
-        const optionValue = audioBitsPerSecond.get(rate);       
+    for (let rate of utl.audioBitsPerSecond.keys()){
+        const optionValue = utl.audioBitsPerSecond.get(rate);       
         const optionEl = document.createElement('option');
         optionEl.textContent = rate;
         optionEl.value= optionValue.toString();
@@ -358,11 +273,13 @@ function createSelectAudioBitperSec(callback:(selected:string)=>void, parent?:HT
 
 
 
-////////////////////////////////////////////
-//update
+/**
+ * configure recorder: on-states
+ * @param this 
+ */
 function recorderConfig (this: RecorderView){
     this.recorder.onstart = async (e) => {
-        new Notice(`Recording!\nBit/s: ${this.selectedAudioBitsperSec/1000}, Format: ${audioExt()}`, consts.SUCCESS_NOTICE_TIMEOUT);  
+        new Notice(`Recording!\nBit/s: ${this.selectedAudioBitsperSec/1000}, Format: ${utl.audioExt()}`, consts.SUCCESS_NOTICE_TIMEOUT);  
         this.recordStartTime = Date.now();
     }     
     this.recorder.onpause = (e) => {
@@ -379,9 +296,6 @@ function recorderConfig (this: RecorderView){
             this.recordedTimeTemp = this.recordedTimeTemp + Date.now()-this.recordStartTime;
         }
         await saveRecord(this, this.chunks, true);        
-
-        //stopRecord.innerText = "Record stopped";
-
 
         //consoleLog(this.plugin, `record stopped, time: ${Date.now().toString()}`)
 
@@ -451,72 +365,25 @@ function updateRecordstateText(state: string, note: HTMLElement): void {
             note.innerText = "ready";
     }
 }
+
 //TODO 开始似乎有延迟？
 function updateTimerShowState(view: RecorderView, state: string, timerEl: HTMLElement): void {
     switch(state){
         case consts.recorderState.recording:
             timerEl.show();
-            timer(view, timerEl);
+            utl.timer(view, timerEl);
             break;
         case consts.recorderState.paused:
-            pauseTimer(view);
+            utl.pauseTimer(view);
             break;
         case consts.recorderState.inactive:
         case consts.recorderState.undefined:
         default:
-            timerSetToZero(timerEl);
-            pauseTimer(view);
+            utl.timerSetToZero(timerEl);
+            utl.pauseTimer(view);
             timerEl.hide();
     }
 }
-
-
-
-
-/*function updateTimer(view:RecorderView, el: HTMLElement) {
-    return ()=>{
-        //let secondsElapsed = 0;
-        if (view.plugin.recorderState === recorderState.recording){
-            const secondsElapsed = (view.recordedTimeTemp + (Date.now()-view.recordStartTime))/1000;
-            el.textContent = `${convertSecondsToTimestamp(secondsElapsed)}`;
-        }//secondsElapsed++;
-    }
-}*/
-
-// start/restart timer
-function timer(view:RecorderView, el: HTMLElement){
-    if (view.timerId) {
-        clearInterval(view.timerId);  // 清除之前的计时器
-    }
-    const updateTimer = ()=>{
-        //let secondsElapsed = 0;
-        if (view.plugin.recorderState === consts.recorderState.recording){
-            const secondsElapsed = (view.recordedTimeTemp + (Date.now()-view.recordStartTime))/1000;
-            el.textContent = `${convertSecondsToTimestamp(secondsElapsed, true)}`;
-        }//secondsElapsed++;
-    }
-    view.timerId = setInterval(updateTimer, 1000);
-    //console.log(`${view.timerId}`)
-}
-
-// stop/pause timer
-function pauseTimer(view: RecorderView) {
-    if (view.timerId) {
-        clearInterval(view.timerId);
-        view.timerId = null;
-    }
-}
-
-function timerSetToZero(el: HTMLElement){
-    el.textContent = '00:00';
-}
-
-
-
-
-
-
-
 
 function getUniqueFilePath(plugin: TimestampPlugin, filePath:string ){
     let basePath = filePath;
@@ -535,7 +402,7 @@ function getUniqueFilePath(plugin: TimestampPlugin, filePath:string ){
 function handleRecordingFileName (plugin:TimestampPlugin): string{
     const now = moment().format(plugin.settings.recordingFileNameDateFormat);
     const prefix = plugin.settings.recordingFileNamePrefix;
-    const filename = `${prefix}-${now}.${audioExt()}`;
+    const filename = `${prefix}-${now}.${utl.audioExt()}`;
     console.log(plugin,'filename: ' + filename);
     return filename;
 }
@@ -600,7 +467,7 @@ async function saveRecord(view: RecorderView, chunks:BlobPart[], isEnd:boolean){
 
 
     const blobTemp = new Blob(chunks, {
-        type: "audio/" + audioExt()
+        type: "audio/" + utl.audioExt()
     });    
     //fixedWebMBlob
     const blob = await fixWebmMetaInfo(blobTemp);
@@ -614,10 +481,10 @@ async function saveRecord(view: RecorderView, chunks:BlobPart[], isEnd:boolean){
             new AfterRecordModal(
                 view.plugin,true,
                 (e) => {
-                    saveBlobAsFile(blob, currentFileName);
+                    utl.saveBlobAsFile(blob, currentFileName);
                 },
                 ()=>{
-                    CopyToClipboard(`\n![[${currentFileName}]]\n`);
+                    utl.CopyToClipboard(`\n![[${currentFileName}]]\n`);
                 },
                 async ()=>{
                     try{
@@ -637,24 +504,9 @@ async function saveRecord(view: RecorderView, chunks:BlobPart[], isEnd:boolean){
         if(isEnd){
             new AfterRecordModal(view.plugin,false,
                 (e)=>{
-                    saveBlobAsFile(blob, currentFileName);
+                    utl.saveBlobAsFile(blob, currentFileName);
                 }
                 ).open();
         }
     });
 }
-
-
-function saveBlobAsFile(blob:Blob, filename:string){   
-    const a = document.createElement('a');
-    const url = URL.createObjectURL(blob);
-    a.style.display = "none";
-    a.href = url;
-    a.download = filename;   
-    a.click();
-    URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-}
-
-
-
