@@ -2,11 +2,12 @@
   "compilerOptions": {
     "baseUrl": ".",
     "inlineSourceMap": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports":true,
     "inlineSources": true,
     "module": "ESNext",
     "target": "ES6",
     "allowJs": true,
-    "allowSyntheticDefaultImports":true,
     "noImplicitAny": true,
     "moduleResolution": "node",
     "importHelpers": true,

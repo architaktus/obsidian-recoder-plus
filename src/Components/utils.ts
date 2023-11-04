@@ -2,6 +2,8 @@ import TimestampPlugin from "src/main";
 import * as consts from "src/consts";
 import { Editor, EditorPosition, MarkdownView, Notice } from "obsidian";
 import { RecorderView } from "./Recorder";
+import dayjs from "dayjs";
+import { join, normalize } from "path";
 
 
 
@@ -71,6 +73,56 @@ export function saveBlobAsFile(blob:Blob, filename:string){
     a.click();
     URL.revokeObjectURL(url);
     document.body.removeChild(a);
+}
+
+/**
+ * get file name from current time
+ * @param plugin 
+ * @returns file name without extensionsname
+ */
+export function handleRecordingFileName (plugin:TimestampPlugin, view: RecorderView): string{
+    const now = dayjs(view.recordStartTime).format(plugin.settings.recordingFileNameDateFormat);
+    const prefix = plugin.settings.recordingFileNamePrefix;
+    const filename = `${prefix}-${now}`;
+    //console.log(plugin,'filename: ' + filename);
+    return filename;
+}
+
+export function getUniqueFileName(view: RecorderView, filePath: string, baseFileName: string){ 
+    let basePath = join(filePath, baseFileName);
+    let index = 0
+	let newFileName = baseFileName;
+    let newFilePath = filePath;
+    //consoleLog(plugin,'oldfilename: ' + basePath);
+    while (view.plugin.app.vault.getAbstractFileByPath(newFilePath)){
+        index++;
+        newFilePath = `${basePath}-${index.toString()}`;
+    }
+    if (index >0){
+        newFileName = `${baseFileName}-${index.toString()}`
+    }
+    console.log(view.plugin,'newfilename: ' + newFileName);
+    return newFileName;
+}
+
+
+export function getSaveFileName (view: RecorderView){
+    const fileDirect = normalize(view.plugin.settings.chosenFolderPathForRecordingFile);
+	let fileName = view.currentRecordingFileName;	
+	fileName = getUniqueFileName(view, fileDirect, fileName);
+
+	view.currentRecordingFileName = fileName;
+    return fileName;
+}
+
+export function getSaveSrc (view: RecorderView, fileName:string, ext?:string){
+    const fileDirect = normalize(view.plugin.settings.chosenFolderPathForRecordingFile);
+    
+	let filePath = ext
+        ? join(fileDirect, `${fileName}.${ext}`)
+        : join(fileDirect, `${fileName}.${audioExt()}`);
+
+    return filePath;
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
