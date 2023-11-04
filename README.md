@@ -5,7 +5,7 @@ This plugin provide a better recorder in Obsidian
 
 ## Features
 - from native WebAPI feature, clean and save:
-    - use audioContext as Method, **NO MOEW BitRate limit**!
+    - use audioContext as Method, **NO MORE BitRate limit**!
     - adopt newest WebCodecs as encoder, your Recording has correct and accurate duration info now (which means **SEEKABLE**)!
 - open in Obsidian's sidebar with more control options (PC: with hover editor you could also hover it.)
 - more than native recorder, you could configure the quality, could **CONTROL** the recording (e.g. pause, resume, set timeout..)
@@ -27,4 +27,4 @@ TODO
     - method adopted here: https://developer.mozilla.org/en-US/docs/Web/API/AudioContext
 - webM, which is a strict mode of matroska:
     - codec: https://www.matroska.org/technical/codec_specs.html
-- https://github.com/davedoesdev/webm-muxer.js, https://github.com/Vanilagy/webm-muxer
+- packaging: https://github.com/davedoesdev/webm-muxer.js, https://github.com/Vanilagy/webm-muxer
