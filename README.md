@@ -10,6 +10,7 @@ This plugin provide a better recorder in Obsidian
 - open in Obsidian's sidebar with more control options (PC: with hover editor you could also hover it.)
 - more than native recorder, you could configure the quality, could **CONTROL** the recording (e.g. pause, resume, set timeout..)
 - rename and save to other places as wish
+- (upcoming) multi-platform
 - (upcoming) encode type & file type as wish
 - (upcoming) pin timestamps while recording
 
@@ -18,8 +19,18 @@ TODO
 
 ## TODO
 * [ ] mobile version & different platforms
-* [ ] ribbon icon
+    * [x] Windows
+    * [x] macOS
+    * [ ] iOS
+    * [ ] ipadOS
+    * [ ] android
+* [ ] more config options, more supported file formats
 * [ ] better UI
+    * [ ] ribbon icon
+    * [ ] better config for mobile
+    * [ ] Recorder UI visualization
+* [ ] readme & demo
+* [ ] i18n
 
 
 ## Reference
