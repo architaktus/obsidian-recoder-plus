@@ -1,3 +1,4 @@
+import { createFormatToCodecMap } from "./Components/utils";
 
 export const RECORDER_VIEW = "recorder-plus-view";
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -123,31 +124,122 @@ export enum recorderState {
 	["mp4a.40.05", "A_AAC/MPEG4/LC/SBR"],
 	["mp4a.67", "A_AAC/MPEG2/LC"],
 ]);*/
-export const WEB_CODEC_TO_MATROSKA_CODEC: { [key: string]: string } = {
+
+
+export const WEB_CODEC_TO_CODEC_INFO: { 
+	[key: string]: {
+		description: string,
+		matroskaCodec: string,
+		supportFormat: string[],
+	} 
+} = {
 	// .mp3
-	'mp3':'A_MPEG/L3',
+	'mp3':{
+		description: 'mp3',
+		matroskaCodec: 'A_MPEG/L3',
+		supportFormat: ['mp3', 'mkv'],
+	},
 
 	// WEBM相关
-	'vorbis': 'A_VORBIS',
-	'opus': 'A_OPUS',
+	'vorbis': {
+		description: 'vorbis',
+		matroskaCodec: 'A_VORBIS',
+		supportFormat: ['webm', 'mkv'],//'ogg',
+	},
+
+	'opus': {
+		description: 'opus',
+		matroskaCodec: 'A_OPUS',
+		supportFormat: ['webm', 'mkv'],//'opus',
+	},
 
 	// flac
-	'flac':'A_FLAC',
+	'flac':{
+		description: 'flac无损压缩',
+		matroskaCodec: 'A_FLAC',
+		supportFormat: ['flac', 'mkv'],//'opus',
+	},
 
 	// PCM 编码
 	// Matroska 小端格式
-	"pcm-u8": "A_PCM/INT/LIT", 
-	"pcm-s16": "A_PCM/INT/LIT", 
-	"pcm-s24": "A_PCM/INT/LIT", 
-	"pcm-s32": "A_PCM/INT/LIT",  
+	"pcm-u8": {
+		description: 'pcm 8位 编码',
+		matroskaCodec: 'A_PCM/INT/LIT',
+		supportFormat: ['wav', 'mkv'],
+	},
+	"pcm-s16": {
+		description: 'pcm 16位 整数编码',
+		matroskaCodec: 'A_PCM/INT/LIT',
+		supportFormat: ['wav', 'mkv'],
+	},
+	"pcm-s24": {
+		description: 'pcm 24位 整数编码',
+		matroskaCodec: 'A_PCM/INT/LIT',
+		supportFormat: ['wav', 'mkv'],
+	},
+	"pcm-s32": {
+		description: 'pcm 32位 整数编码',
+		matroskaCodec: 'A_PCM/INT/LIT',
+		supportFormat: ['wav', 'mkv'],
+	},
 	// Matroska 浮点       
-	"pcm-f32": "A_PCM/FLOAT/IEEE",
+	"pcm-f32": {
+		description: 'pcm 32位 浮点编码',
+		matroskaCodec: 'A_PCM/FLOAT/IEEE',
+		supportFormat: ['wav', 'mkv'],
+	},
 	// 非线性
-	"alaw": "A_MS/ACM",
-	"ulaw": "A_MS/ACM",
+	"alaw": {
+		description: '',
+		matroskaCodec: 'A_MS/ACM',
+		supportFormat: ['wav', 'mkv'],
+	},
+	"ulaw": {
+		description: '',
+		matroskaCodec: 'A_MS/ACM',
+		supportFormat: ['wav', 'mkv'],
+	},
   
 	// AAC 编码
-	"mp4a.40.02": "A_AAC/MPEG4/LC",
-	"mp4a.40.05": "A_AAC/MPEG4/LC/SBR",
-	"mp4a.67": "A_AAC/MPEG2/LC",
+	"mp4a.40.02": {
+		description: '',
+		matroskaCodec: 'A_AAC/MPEG4/LC',
+		supportFormat: ['m4a', 'mkv'],
+	},
+	"mp4a.40.05": {
+		description: '',
+		matroskaCodec: 'A_AAC/MPEG4/LC/SBR',
+		supportFormat: ['m4a', 'mkv'],
+	},
+	"mp4a.67": {
+		description: '',
+		matroskaCodec: 'A_AAC/MPEG2/LC',
+		supportFormat: ['m4a', 'mkv'],
+	},
 }
+
+//format -> WebCodec (i.e. 'm4a' -> 'mp4a.40.02', 'mp4a.40.05', ...)
+export const FORMAT_TO_WEB_CODEC_MAP = createFormatToCodecMap(WEB_CODEC_TO_CODEC_INFO);
+
+
+
+
+/**
+ * streamOptions - audioBitsPerSecond
+ */
+export const AUDIO_BITS_PER_SECOND = new Map<string,number>([
+    ['kbps 64', 64000],
+    ['kbps 128', 128000],
+    ['kbps 192', 192000],
+    ['kbps 320', 320000],
+    ['kbps 512', 512000],
+    ['kbps 1411', 1411000]
+]);
+
+
+
+export const AUDIO_SAMPLE_RATE = new Map<string,number>([
+    ['44.1 kHz', 44100],
+    ['48 kHz', 48000],
+]);
+

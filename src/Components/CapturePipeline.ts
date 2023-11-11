@@ -2,7 +2,7 @@
 import { Muxer, ArrayBufferTarget, FileSystemWritableFileStreamTarget  } from 'webm-muxer';
 import dayjs from "dayjs";
 
-import { WEB_CODEC_TO_MATROSKA_CODEC, recorderState } from 'src/consts';
+import { WEB_CODEC_TO_CODEC_INFO, recorderState } from 'src/consts';
 import { RecorderView } from './Recorder';
 import { AudioFormat } from './Settings';
 import { Notice } from 'obsidian';
@@ -76,11 +76,16 @@ export class CapturePipeline {
                 {audio: { deviceId: this.selecteddeviceId}}
             )
             this.mediaStream = await mediaStream;
+            const audioTracks = this.mediaStream.getAudioTracks();
+            if (audioTracks.length > 0) {
+                this.view.audioFormat.numberOfChannels = audioTracks[0].getSettings().channelCount;
+            }
+            
             this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
 
             // destination
             this.destination = this.audioContext.createMediaStreamDestination();
-            this.destination.channelCount = 1;//this.numberOfChannels;
+            this.destination.channelCount = this.view.audioFormat.numberOfChannels;
 
             // connect
             this.source.connect(this.destination)
@@ -89,7 +94,7 @@ export class CapturePipeline {
             this.muxer = new Muxer({
                 target: new ArrayBufferTarget(),
                 audio: {
-                    codec: WEB_CODEC_TO_MATROSKA_CODEC[this.audioFormat.codec],
+                    codec: WEB_CODEC_TO_CODEC_INFO[this.audioFormat.codec].matroskaCodec,
                     sampleRate:this.audioFormat.sampleRate, 
                     numberOfChannels:this.audioFormat.numberOfChannels, 
                     bitDepth:this.audioFormat.bitDepth?this.audioFormat.bitDepth:undefined
@@ -208,7 +213,7 @@ export class CapturePipeline {
                 this.view.currentRecordingFileName = handleRecordingFileName(this.view.plugin, this.view);
                 new Notice(`Recording!\n \
                     ${this.view.currentRecordingFileName}.${this.audioFormat.format},\n \
-                    with codec ${this.audioFormat.codec}, ${this.audioFormat.bitrate/1000}bps, ${this.audioFormat.sampleRate/1000}kHz, Channel x ${this.audioFormat.numberOfChannels}, ${this.audioFormat.bitDepth?this.audioFormat.bitDepth:null}`);
+                    with codec ${this.audioFormat.codec}, ${this.audioFormat.bitrate/1000}bps, ${this.audioFormat.sampleRate/1000}kHz, Channel x ${this.audioFormat.numberOfChannels}, bitDepth: ${this.audioFormat.bitDepth?this.audioFormat.bitDepth:"unset"}`);
                 break;
         }
     }

@@ -115,8 +115,16 @@ export function getSaveFileName (view: RecorderView){
     return fileName;
 }
 
-export function getSaveSrc (view: RecorderView, fileName:string){
+export async function getSaveSrc (view: RecorderView, fileName:string){
     const fileDirect = normalize(view.plugin.settings.chosenFolderPathForRecordingFile);
+
+    //check folder directory
+    const fileDirectTest = fileDirect.replace(/\\/g,'/')
+    const folder = view.plugin.app.vault.getAbstractFileByPath(fileDirectTest)
+    if (!folder){
+        await view.plugin.app.vault.createFolder(fileDirect)
+    }
+    
     return join(fileDirect, `${fileName}.${view.audioFormat.format}`);
 }
 
@@ -198,18 +206,7 @@ export function timerSetToZero(el: HTMLElement){
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Recorder Widgets ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
-/**
- * streamOptions - audioBitsPerSecond
- * seems that ob only support max. 260kbps
- */
-export const audioBitsPerSecond= new Map<string,number>([
-    ['kbps 64', 64000],
-    ['kbps 128', 128000],
-    ['kbps 192', 192000],
-    ['kbps 320', 320000],
-    ['kbps 512', 512000],
-    ['kbps 1411', 1411000]
-]);
+
 
 /**
  * streamOptions - mimeType: `audio/${audioExt()};codecs=opus`,
@@ -272,4 +269,26 @@ export async function getDevices(): Promise<Map<string, string>> {
         })
         return microphonesMap;
   }
+}
+
+
+
+//////////////////////////////////
+//其他
+export function createFormatToCodecMap(
+    codecInfoMap: { [key: string]: { description: string, matroskaCodec: string, supportFormat: string[] } }
+): { [key: string]: string[] } {
+    let formatToCodecMap: { [key: string]: string[] } = {};
+
+    for (const codec in codecInfoMap) {
+        const info = codecInfoMap[codec];
+        info.supportFormat.forEach(format => {
+            if (!formatToCodecMap[format]) {
+                formatToCodecMap[format] = [];
+            }
+            formatToCodecMap[format].push(codec);
+        });
+    }
+
+    return formatToCodecMap;
 }

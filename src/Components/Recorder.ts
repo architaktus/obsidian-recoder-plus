@@ -12,6 +12,7 @@ import * as utl from "./utils";
 import { CapturePipeline } from "./CapturePipeline";
 import * as uis from "./UI&Menu/uiWidgets";
 import { AudioFormat } from "./Settings";
+import { webcrypto } from "crypto";
 
 
 
@@ -44,7 +45,6 @@ export class RecorderView extends ItemView {
         format: 'webm', 
         codec:'opus',
         sampleRate: 44100,
-        numberOfChannels:1, //TODO 是否可以检测而非设定？
         bitrate: 320000,
     };
 
@@ -167,7 +167,7 @@ function createGeneralTab(plugin: RecorderPlusPlugin, view: RecorderView, parent
             if (!view.plugin.recorderState || view.plugin.recorderState === consts.recorderState.closed){
                 return;
             } else {                
-                view.pipeline.close();
+                await view.pipeline.close();
 
                 updateRecordButtonTextBasedOnState(view.plugin.recorderState, recordButton);
                 updateRecordstateText(view.plugin.recorderState, recordState);
@@ -207,50 +207,106 @@ async function createAdvanceTab(view: RecorderView, parent: HTMLDivElement){
 
     //const audio_tag = mainRecorderDiv.createEl("audio");        
     const microphones = await utl.getDevices();
+
     createSelectMc(
         microphones, 
         (id)=>{view.selectedMicrophoneId = id;},
         configDiv);
+
     createSelectAudioBitperSec(
         (rate)=>{view.audioFormat.bitrate = Number(rate);},
-        configDiv
-        );
+        configDiv,
+        view.audioFormat.bitrate,
+        );    
     
-    /*TODO
     createSelectSampleRate(
         (sampleRate)=>{view.audioFormat.sampleRate = Number(sampleRate);},
-        configDiv
+        configDiv,
+        view.audioFormat.sampleRate
     );
 
     createSelectCodec(
         (codec:string)=>{
             view.audioFormat.codec = codec;
-            if(     codec === "pcm-u8"
-            ){
-                view.audioFormat.bitDepth = Number(codec.slice(-1));
+            setBitDepthFromCodec(view.audioFormat, codec);
+
+            const selectFileFormatEl = document.querySelector('#drop-list__file-format') as HTMLSelectElement;
+            if(!consts.WEB_CODEC_TO_CODEC_INFO[codec].supportFormat.includes(view.audioFormat.format)){
+                view.audioFormat.format = consts.WEB_CODEC_TO_CODEC_INFO[codec].supportFormat[0]
+                selectFileFormatEl.value = view.audioFormat.format;
             }
-            if(     codec === "pcm-s16"
-                ||  codec === "pcm-s24"
-                ||  codec === "pcm-s32"
-                ||  codec === "pcm-f32"
-            ){
-                view.audioFormat.bitDepth = Number(codec.slice(-2));
-            }
+
+            // query all options in format drop list
+            const options = selectFileFormatEl.querySelectorAll('option');
+            options.forEach((option)=>{
+                // 移除class
+                option.classList.remove('active-selection', 'deactive-selection');
+
+                // support/ unsupport ?
+                const isSupported = consts.WEB_CODEC_TO_CODEC_INFO[codec].supportFormat.some(format => option.id === `drop-list__file-format__item-${format}`);
+
+                // distinguish formats support/ unsupport
+                if (isSupported) {
+                    option.classList.add('active-selection');
+                } else {
+                    option.classList.add('deactive-selection');
+                }
+            });
         },
-        configDiv
+        configDiv,
+        view.audioFormat.codec,
     );
 
     createSelectFileFormat(
-        (format)=>{view.audioFormat.format = format;},
-        configDiv
+        (format)=>{
+            view.audioFormat.format = format;
+
+            const selectCodecEl = document.querySelector('#drop-list__codec') as HTMLSelectElement;
+            if(!consts.FORMAT_TO_WEB_CODEC_MAP[format].includes(view.audioFormat.codec)){
+                view.audioFormat.codec = consts.FORMAT_TO_WEB_CODEC_MAP[format][0];
+                selectCodecEl.value = view.audioFormat.codec;
+            }
+
+            // query all options in codec drop list
+            const options = selectCodecEl.querySelectorAll('option');
+            options.forEach(option=>{
+                // 移除class
+                option.classList.remove('active-selection', 'deactive-selection');
+                
+                // codecs support/ unsupport?
+                const isSupported = consts.FORMAT_TO_WEB_CODEC_MAP[format].some(codec => option.id === `drop-list__codec__item-${codec}`);
+                
+                // distinguish formats support/ unsupport
+                if (isSupported) {
+                    option.classList.add('active-selection');
+                } else {
+                    option.classList.add('deactive-selection');
+                }
+            });
+        },
+        configDiv,
+        view.audioFormat.format
     );
-
-    //筛选createSelectFileFormat 可选项
-    //每次codec更新都调用。 add id， search replace
-
-    */
 }
 
+/**
+ * if is pcm codec, set bitDepth
+ * @param audioFormat 
+ * @param codec 
+ */
+function setBitDepthFromCodec(audioFormat:AudioFormat, codec:string) {
+    if(     codec === "pcm-u8"
+    ){
+        audioFormat.bitDepth = Number(codec.slice(-1));
+    }
+    if(     codec === "pcm-s16"
+        ||  codec === "pcm-s24"
+        ||  codec === "pcm-s32"
+        ||  codec === "pcm-f32"
+    ){
+        audioFormat.bitDepth = Number(codec.slice(-2));
+    }
+}
 
 
 /**
@@ -268,6 +324,7 @@ function createSelectMc(optionsMap: Map<string, string>, callback:(selected:stri
             const defaultLabel = optionsMap.get('default').replace('Default - ', '');
             defaultOptionEl.textContent = `${defaultLabel} (Default)`;
             defaultOptionEl.value= 'default'; 
+            defaultOptionEl.text= `default output method`; 
             defaultOptionEl.selected = true;
             selectEl.appendChild(defaultOptionEl);
 
@@ -301,7 +358,7 @@ function createSelectMc(optionsMap: Map<string, string>, callback:(selected:stri
             removeAllOptions(selectEl);
             const newOptionsMap = await utl.getDevices();
             addChild(newOptionsMap);
-        } else {            
+        } else {
             callback(selected);
         }
 	});
@@ -311,16 +368,23 @@ function createSelectMc(optionsMap: Map<string, string>, callback:(selected:stri
 }
 
 
-function createSelectAudioBitperSec(callback:(selected:string)=>void, parent?:HTMLElement): HTMLSelectElement{
+/**
+ * create a drop list for selecting audio Bitrate
+ * @param callback 
+ * @param parent 
+ * @param selectedValue default value
+ * @returns 
+ */
+function createSelectAudioBitperSec(callback:(selected:string)=>void, parent?:HTMLElement, selectedValue?:number): HTMLSelectElement{
 	const selectEl = document.createElement('select');
         
-    for (let rate of utl.audioBitsPerSecond.keys()){
-        const optionValue = utl.audioBitsPerSecond.get(rate);       
+    for (let rate of consts.AUDIO_BITS_PER_SECOND.keys()){
+        const optionValue = consts.AUDIO_BITS_PER_SECOND.get(rate);       
         const optionEl = document.createElement('option');
         optionEl.textContent = rate;
         optionEl.value= optionValue.toString();
         selectEl.appendChild(optionEl);
-        if(optionValue === 320000){
+        if(optionValue === selectedValue){
             optionEl.selected = true;
         }
     }
@@ -335,8 +399,99 @@ function createSelectAudioBitperSec(callback:(selected:string)=>void, parent?:HT
 }
 
 
+function createSelectSampleRate(callback:(selected:string)=>void, parent?:HTMLElement, selectedValue?:number): HTMLSelectElement{
+	const selectEl = document.createElement('select');
+        
+    for (let rate of consts.AUDIO_SAMPLE_RATE.keys()){
+        const optionValue = consts.AUDIO_SAMPLE_RATE.get(rate);       
+        const optionEl = document.createElement('option');
+        optionEl.textContent = rate;
+        optionEl.value= optionValue.toString();
+        selectEl.appendChild(optionEl);
+        if(optionValue === selectedValue){
+            optionEl.selected = true;
+        }
+    }
+
+	selectEl.addEventListener('change',async (e)=>{
+		const selected = (e.target as HTMLSelectElement).value;    
+        callback(selected);
+	});
+
+    parent? parent.appendChild(selectEl): null;
+	return selectEl;
+}
 
 
+/**
+ * create a drop list for selecting WebCodec for encoding
+ * @param callback 
+ * @param parent 
+ * @param options drop list active options, leave it blank: by default -> listing all supported WebCodecs
+ * @param selectedValue 
+ * @returns 
+ */
+function createSelectCodec(callback:(selected:string)=>void, parent?:HTMLElement, selectedValue?:string): HTMLSelectElement{
+	const selectEl = document.createElement('select');
+    selectEl.id = "drop-list__codec";
+
+    for (let webCodecs in consts.WEB_CODEC_TO_CODEC_INFO){
+        const optionValue = webCodecs;
+        const optionEl = document.createElement('option');
+        optionEl.id=`drop-list__codec__item-${webCodecs}`;
+
+        optionEl.textContent = webCodecs;
+        optionEl.value = webCodecs;
+        optionEl.title = consts.WEB_CODEC_TO_CODEC_INFO[webCodecs].description;
+
+        selectEl.appendChild(optionEl);
+        if(optionValue === selectedValue){
+            optionEl.selected = true;
+        }
+    }
+
+	selectEl.addEventListener('change',async (e)=>{
+		const selected = (e.target as HTMLSelectElement).value;    
+        callback(selected);
+	});
+
+    parent? parent.appendChild(selectEl): null;
+	return selectEl;
+}
+
+function createSelectFileFormat(callback:(selected:string)=>void, parent?:HTMLElement, selectedValue?:string): HTMLSelectElement{
+    //check old
+    //const oldSelectEl = parent.querySelector("#drop-list__file-format");
+    // create new
+	const selectEl = document.createElement('select');
+    selectEl.id = "drop-list__file-format";
+        
+    for (let format in consts.FORMAT_TO_WEB_CODEC_MAP){
+        const optionValue = format;       
+        const optionEl = document.createElement('option');
+        optionEl.id=`drop-list__file-format__item-${format}`;
+        
+        optionEl.textContent = format;
+        optionEl.value= optionValue;
+        //optionEl.title= optionValue;
+        selectEl.appendChild(optionEl);
+        if(optionValue === selectedValue){
+            optionEl.selected = true;
+        }
+    }
+
+	selectEl.addEventListener('change',async (e)=>{
+		const selected = (e.target as HTMLSelectElement).value;    
+        callback(selected);
+	});
+
+    //if(oldSelectEl){
+    //    oldSelectEl.replaceWith(selectEl);
+    //} else {
+        parent? parent.appendChild(selectEl): null;
+    //}
+	return selectEl;
+}
 
 function updateRecordButtonTextBasedOnState(state: number, button: HTMLElement): void {
     //TODO recordButton.innerText 改成 icon
@@ -368,7 +523,6 @@ function updateRecordstateText(state: number, note: HTMLElement): void {
     }
 }
 
-//TODO 开始似乎有延迟？
 function updateTimerShowState(view: RecorderView, state: number, timerEl: HTMLElement): void {
     switch(state){
         case consts.recorderState.running:
@@ -403,7 +557,7 @@ async function saveRecord(view: RecorderView, buffer:ArrayBuffer, isEnd:boolean)
     //has old temp?
     const fileDirect = normalize(view.plugin.settings.chosenFolderPathForRecordingFile);
 
-    const tempfilePath = utl.getSaveSrc(view, tempFileName).replace(/\\/g,'/');
+    const tempfilePath = (await utl.getSaveSrc(view, tempFileName)).replace(/\\/g,'/');
     const tempfile = view.plugin.app.vault.getAbstractFileByPath(tempfilePath);
 
     //filename 
@@ -416,7 +570,7 @@ async function saveRecord(view: RecorderView, buffer:ArrayBuffer, isEnd:boolean)
         }
     }
 
-    filePath = utl.getSaveSrc(view, fileName);
+    filePath = await utl.getSaveSrc(view, fileName);
     
 
     const blob = new Blob([buffer], 
@@ -435,7 +589,7 @@ async function saveRecord(view: RecorderView, buffer:ArrayBuffer, isEnd:boolean)
         if(!!tempfile){
             await view.plugin.app.vault.delete(tempfile); 
             fileName = fileName.slice(0, -1);
-            filePath = utl.getSaveSrc(view, fileName);
+            filePath = await utl.getSaveSrc(view, fileName);
             await view.plugin.app.vault.rename(file, filePath);
         } 
         if (isEnd){
