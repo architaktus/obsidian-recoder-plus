@@ -5,9 +5,7 @@ import {
 	Setting, 
 } from 'obsidian';
 import { __extends } from 'tslib';
-import TimestampPlugin from '../main';
-
-
+import RecorderPlusPlugin from '../main';
 
 export interface pluginSettings {
 	chosenFolderPathForRecordingFile: string;
@@ -15,11 +13,26 @@ export interface pluginSettings {
 	recordingFileNameDateFormat:string;
 }
 
+/**
+ * 
+ * @param bitDepth: bit depth for uncompressed format/lossless compression (i.e. PCM/WAV/FLAC/ALAC)(normally 16bit, but could be 24 & 32)
+ */
+export interface AudioFormat {
+	format: string;
 
-export class TimestampPluginSettingTab extends PluginSettingTab {
-	plugin: TimestampPlugin;
+	codec: string;
+	sampleRate: number;
+	numberOfChannels: number;
+	bitrate:number;
+	bitDepth?:number;
+}
 
-	constructor(app: App, plugin: TimestampPlugin) {
+
+
+export class RecorderPlusPluginSettingTab extends PluginSettingTab {
+	plugin: RecorderPlusPlugin;
+
+	constructor(app: App, plugin: RecorderPlusPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 		this.containerEl.addClass("settings")
@@ -82,7 +95,7 @@ export class TimestampPluginSettingTab extends PluginSettingTab {
 
 
 function createSettingGroup(
-    settingTab: TimestampPluginSettingTab,
+    settingTab: RecorderPlusPluginSettingTab,
     title: string, 
     desc?: string, 
     withButton?: boolean, 

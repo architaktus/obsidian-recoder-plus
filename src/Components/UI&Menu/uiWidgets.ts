@@ -3,7 +3,9 @@ import {
     Setting,
 } from 'obsidian';
 
-import { TimestampPluginSettingTab } from '../Settings';
+import { RecorderPlusPluginSettingTab } from '../Settings';
+import { iconInfo } from 'src/consts';
+import { RecorderView } from '../Recorder';
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 // Modal Elements//////////////////////////////////////////////////////////////////////////////
@@ -155,4 +157,91 @@ export function confirmDiv(parent: HTMLElement, confirmText: string, onConfirmca
 		}
 	)	*/
     return divConfirm;
+}
+
+
+
+////////////////////////////////////////////////////////////////////////////////////////////////
+//UI for Recorder View//////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////
+
+export class RecorderViewContentTab {
+	navBar: HTMLDivElement;
+	navBarButton: HTMLButtonElement;
+	contentEl: HTMLDivElement;
+	selectedTab:string;
+	tabName:string;
+	constructor(
+		navBar: HTMLDivElement,
+		parent: HTMLDivElement,
+		tabName: string, 
+		selectedTab: string,
+	){
+		this.selectedTab = selectedTab;
+		this.tabName = tabName;
+		this.navBar = navBar;
+
+		this.navBarButton.onclick=this.navBarButtonOnClick;
+		this.contentEl = parent.createEl(
+			'div',
+			{
+				cls:'recorder-plus-tab', 
+				attr:{
+					id:tabName,
+				} 
+			});
+		this.contentEl.style.display = 'none';
+	}
+
+	//contents
+
+	navBarButtonOnClick(){
+		if(this.selectedTab === this.tabName){
+			return;
+		} else {
+			
+		}
+	}
+}
+
+export function createNavBar(view: RecorderView){
+	const navBar = view.navBar;
+	for(const tabName in iconInfo){
+		const navBarButton = navBar.createEl(
+			'button', 
+			{
+				cls:'recorder-plus__nav-button',
+				text: tabName,
+			}
+		);
+		navBarButton.id = tabName;
+		navBarButton.onclick=() => updateView(view, tabName);
+		if(tabName === view.selectedTab){
+			navBarButton.addClass('recorder-plus__selected-button')
+		}
+	}
+	updateView(view, view.selectedTab);
+}
+
+export function updateView(view: RecorderView, clickedName: string){
+	
+	if(view.selectedTab === clickedName){
+		view.lastSelectedTab = view.selectedTab;		
+		return;
+	} else {
+		//lastselection
+		view.lastSelectedTab = view.selectedTab;
+		view.selectedTab = clickedName;
+		const lastButton = view.navBar.querySelector(`#${view.lastSelectedTab}`);			
+		lastButton.removeClass('recorder-plus__selected-button');
+		const lastTab = view.contentEl.querySelector(`#${view.lastSelectedTab}`);
+		lastTab.addClass('recorder-plus__hidden');
+		//console.log(`current:${clickedName}, last: ${lastTab.id}, last.class: ${lastTab.className}`);
+		//console.log(`lastSelectedTab:${view.lastSelectedTab}`);
+
+		const currentButton = view.navBar.querySelector(`#${clickedName}`);
+		currentButton.addClass('recorder-plus__selected-button');
+		const currentContent = view.contentEl.querySelector(`#${clickedName}`);
+		currentContent.removeClass('recorder-plus__hidden');//recorder-plus__selected-tab
+	}
 }

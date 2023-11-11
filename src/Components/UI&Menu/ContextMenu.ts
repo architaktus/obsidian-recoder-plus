@@ -15,7 +15,6 @@ import * as utils from "../utils";
 import { buttonTextConverter, parseButtonText, parseButtonTextFromEmbed, replaceMediaElement } from "../ButtonRender/ButtonTools";
 import { PromptModal } from "./modal";
 import { buttonToken, textToken, EditorInternal } from "../../interface";
-import { VideoView } from "../Player/VideoView";
 
 /*export function registerOnPaneMenu() {            
         // Save the original method        

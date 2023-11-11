@@ -10,6 +10,7 @@ This plugin provide a better recorder in Obsidian
 - open in Obsidian's sidebar with more control options (PC: with hover editor you could also hover it.)
 - more than native recorder, you could configure the quality, could **CONTROL** the recording (e.g. pause, resume, set timeout..)
 - rename and save to other places as wish
+- (upcoming) encode type & file type as wish
 - (upcoming) pin timestamps while recording
 
 ## Demo
@@ -24,7 +25,9 @@ TODO
 ## Reference
 - Recorder:
     - common method: https://developer.mozilla.org/en-US/docs/Web/API/MediaRecorder
-    - method adopted here: https://developer.mozilla.org/en-US/docs/Web/API/AudioContext
+    - method adopted here: 
+        - WebCodecs
+        - AudioContext: https://developer.mozilla.org/en-US/docs/Web/API/AudioContext
 - webM, which is a strict mode of matroska:
     - codec: https://www.matroska.org/technical/codec_specs.html
 - packaging: https://github.com/davedoesdev/webm-muxer.js, https://github.com/Vanilagy/webm-muxer

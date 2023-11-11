@@ -1,7 +1,7 @@
 
 import { ButtonComponent,Editor, Modal, Notice, } from 'obsidian';
-import TimestampPlugin from '../../main';
 import * as ui from './uiWidgets';
+import RecorderPlusPlugin from 'src/main';
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -12,13 +12,13 @@ import * as ui from './uiWidgets';
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 export class AfterRecordModal extends Modal {
-	plugin: TimestampPlugin;
+	plugin: RecorderPlusPlugin;
 	saveFileCallBack:(e:Event)=>void;
 	copylinkCallBack:()=>void;
 	deleteCallBack: ()=>void;
 	saveSuccess:boolean;
 	constructor(
-		plugin: TimestampPlugin,
+		plugin: RecorderPlusPlugin,
 		saveSuccess: boolean,
 		saveFileCallBack:(e:Event)=>void,
 		copylinkCallBack?:()=>void,
@@ -131,7 +131,7 @@ export class AfterRecordModal extends Modal {
 ///////////////////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////////////////
 export class ConfirmModal extends Modal {
-	plugin: TimestampPlugin;
+	plugin: RecorderPlusPlugin;
 	confirmTitle:string;
 	confirmCallBack:()=>void;
 	confirmText:string='';
@@ -139,7 +139,7 @@ export class ConfirmModal extends Modal {
 	highlightConfirmButton?: boolean=false;
 	openSettingTab:boolean=false;
 	constructor(
-		plugin: TimestampPlugin,
+		plugin: RecorderPlusPlugin,
 		confirmTitle:string,
 		confirmCallBack:()=>void,
 		confirmText?:string,

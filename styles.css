@@ -1,6 +1,6 @@
 :root{
-  --button-background-color: #5bb47c;
-  --button-text-color: #ffffff;
+  --recorder-button-background-color: #ffffff;
+  --button-text-color-1: #ffffff;
   --button-border-color:#607a2a;
   --button-border-radius: 5px;
   --button-box-shadow-color: rgb(210, 210, 210);
@@ -188,16 +188,53 @@ input.disabled-field{
   background-color: #e9e9e9;
 }
 
-div[data-type="video-view"] audio {
-  height: inherit !important;
+
+
+/* display/hide div 
+.recorder-plus__content{
+  
+}
+
+div.recorder-plus__selected-tab{
+  display: block;
+}*/
+
+.recorder-plus__hidden{
+  display: none;
+}
+
+.recorder-plus-nav-group > button{
+  border: none;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  background: none;
+  box-shadow: none;
+  width: 33%;
+  height: 100%;
+}
+
+.recorder-plus__nav-button.recorder-plus__selected-button{
+  border: none;
+  /*box-shadow: var(--input-shadow);*/
+  background-color: var(--recorder-button-background-color);/*var(--interactive-accent);*/
+  font-weight:bolder;
 }
 
 
+.recorder-plus__nav-container{
+  /*idth: 100%;*/
+  position: relative;
+  top:-12px;
+  margin-left:-12px;
+  margin-right: -12px;
+}
 
-
-
-
-
+.recorder-plus__nav{
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  border-bottom: 1.5px dotted var(--modal-border-color);
+}
 
 
 

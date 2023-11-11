@@ -2,7 +2,7 @@ import { App, Editor, Plugin, } from 'obsidian';
 ///////////////////////////////////////////////////////////////////////////////////////////////
 import * as consts from './consts';
 import { RecorderView } from './Components/Recorder';
-import {pluginSettings, TimestampPluginSettingTab} from 'src/Components/Settings';
+import {pluginSettings, RecorderPlusPluginSettingTab} from 'src/Components/Settings';
 import { addCommands } from './Components/Commands';
 
 // DEFAULT ////////////////////////////////////////////////////////////////////////////////////
@@ -12,11 +12,11 @@ export const DEFAULT_SETTINGS: pluginSettings = {
 	recordingFileNameDateFormat:"YYYYMMDDHHmmss", //https://momentjs.com/
 }
 
-export default class TimestampPlugin extends Plugin {
+export default class RecorderPlusPlugin extends Plugin {
 	app: App;	
 	settings: pluginSettings;
 	editor: Editor;
-	recorderState: string | undefined = undefined;
+	recorderState: number = 0;
 
 	// load Plugin settings
 	async loadSettings() {		
@@ -41,7 +41,7 @@ export default class TimestampPlugin extends Plugin {
 		);	
 		
 		// settings tab
-		this.addSettingTab(new TimestampPluginSettingTab(this.app, this));
+		this.addSettingTab(new RecorderPlusPluginSettingTab(this.app, this));
 
 		// Commands
 		addCommands.call(this);
@@ -50,6 +50,6 @@ export default class TimestampPlugin extends Plugin {
 	async onunload() {
 		this.editor = null;
 		this.app.workspace.detachLeavesOfType(consts.RECORDER_VIEW);
-		this.recorderState = undefined;
+		this.recorderState = 0;
 	}	
 }

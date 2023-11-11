@@ -30,10 +30,14 @@ export const ERRORS: { [key: string]: string } = {
 // Icons
 export const iconA = "chevron-right-square";
 export const iconSetting = "chevron-right-square";
+//SVG
+export enum iconInfo {
+	"General"="General",
+	"Advance"="Advance",
+	"Viewer"="Viewer"
+}
 
 
-export const HOST = '127.0.0.1'
-export const LOCAL_MEDIA_ROUTE = 'localmedia'
 
 //https://en.wikipedia.org/wiki/Audio_file_format
 export const AUDIO_EXTENSIONS = [
@@ -71,10 +75,79 @@ export const VIDEO_EXTENSIONS = [
 ];
 
 
-
+/**
+ *  closed, 0
+ *  suspend, 1
+ *  running, 2
+ */
 export enum recorderState {
-    undefined = '0',
-    inactive = 'inactive',
-    paused = 'paused',
-    recording = 'recording',
+    closed,
+    suspend,
+    running,
+}
+/**
+ * old 
+ * 	undefined, 0
+    inactive, 1
+    paused, 2
+    recording, 3
+ * 
+ */
+
+// ReadonlyMap 确保映射不会被修改
+/*export const WEB_CODEC_TO_MATROSKA_CODEC: ReadonlyMap<string, string> = new Map([
+	// .mp3
+	['mp3','A_MPEG/L3'],
+
+	// WEBM相关
+	['vorbis','A_VORBIS'],
+	['opus','A_OPUS'],
+
+	// flac
+	['flac','A_FLAC'],
+
+	// PCM 编码
+	// Matroska 小端格式
+	["pcm-u8", "A_PCM/INT/LIT"], 
+	["pcm-s16", "A_PCM/INT/LIT"], 
+	["pcm-s24", "A_PCM/INT/LIT"], 
+	["pcm-s32", "A_PCM/INT/LIT"],  
+	// Matroska 浮点       
+	["pcm-f32", "A_PCM/FLOAT/IEEE"],
+	// 非线性
+	["alaw", "A_MS/ACM"],
+	["ulaw", "A_MS/ACM"],
+  
+	// AAC 编码
+	["mp4a.40.02", "A_AAC/MPEG4/LC"],
+	["mp4a.40.05", "A_AAC/MPEG4/LC/SBR"],
+	["mp4a.67", "A_AAC/MPEG2/LC"],
+]);*/
+export const WEB_CODEC_TO_MATROSKA_CODEC: { [key: string]: string } = {
+	// .mp3
+	'mp3':'A_MPEG/L3',
+
+	// WEBM相关
+	'vorbis': 'A_VORBIS',
+	'opus': 'A_OPUS',
+
+	// flac
+	'flac':'A_FLAC',
+
+	// PCM 编码
+	// Matroska 小端格式
+	"pcm-u8": "A_PCM/INT/LIT", 
+	"pcm-s16": "A_PCM/INT/LIT", 
+	"pcm-s24": "A_PCM/INT/LIT", 
+	"pcm-s32": "A_PCM/INT/LIT",  
+	// Matroska 浮点       
+	"pcm-f32": "A_PCM/FLOAT/IEEE",
+	// 非线性
+	"alaw": "A_MS/ACM",
+	"ulaw": "A_MS/ACM",
+  
+	// AAC 编码
+	"mp4a.40.02": "A_AAC/MPEG4/LC",
+	"mp4a.40.05": "A_AAC/MPEG4/LC/SBR",
+	"mp4a.67": "A_AAC/MPEG2/LC",
 }

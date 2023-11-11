@@ -1,4 +1,4 @@
-import TimestampPlugin from "src/main";
+import RecorderPlusPlugin from "src/main";
 import * as consts from "src/consts";
 import { Editor, EditorPosition, MarkdownView, Notice } from "obsidian";
 import { RecorderView } from "./Recorder";
@@ -12,13 +12,13 @@ import { join, normalize } from "path";
  * @param plugin 
  * @returns 
  */
-export function isViewOpen (plugin: TimestampPlugin, leafType: string){
+export function isViewOpen (plugin: RecorderPlusPlugin, leafType: string){
 	const isVideoViewOpen = plugin.app.workspace.getLeavesOfType(leafType).length > 0 ?? undefined;
 	return isVideoViewOpen;
 }
 
 
-export async function activateRecorderView(plugin: TimestampPlugin) {
+export async function activateRecorderView(plugin: RecorderPlusPlugin) {
 	if (isViewOpen(plugin, consts.RECORDER_VIEW)){
 		plugin.app.workspace.revealLeaf(
 			plugin.app.workspace.getLeavesOfType(consts.RECORDER_VIEW)[0]
@@ -80,8 +80,8 @@ export function saveBlobAsFile(blob:Blob, filename:string){
  * @param plugin 
  * @returns file name without extensionsname
  */
-export function handleRecordingFileName (plugin:TimestampPlugin, view: RecorderView): string{
-    const now = dayjs(view.recordStartTime).format(plugin.settings.recordingFileNameDateFormat);
+export function handleRecordingFileName (plugin:RecorderPlusPlugin, view: RecorderView): string{
+    const now = dayjs(view.pipeline.recordStartTime).format(plugin.settings.recordingFileNameDateFormat);
     const prefix = plugin.settings.recordingFileNamePrefix;
     const filename = `${prefix}-${now}`;
     //console.log(plugin,'filename: ' + filename);
@@ -115,14 +115,9 @@ export function getSaveFileName (view: RecorderView){
     return fileName;
 }
 
-export function getSaveSrc (view: RecorderView, fileName:string, ext?:string){
+export function getSaveSrc (view: RecorderView, fileName:string){
     const fileDirect = normalize(view.plugin.settings.chosenFolderPathForRecordingFile);
-    
-	let filePath = ext
-        ? join(fileDirect, `${fileName}.${ext}`)
-        : join(fileDirect, `${fileName}.${audioExt()}`);
-
-    return filePath;
+    return join(fileDirect, `${fileName}.${view.audioFormat.format}`);
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////
@@ -178,14 +173,11 @@ export function createTimestamp (hh:number,mm:number,ss:number){
 // start/restart timer
 export function timer(view:RecorderView, el: HTMLElement){
     if (view.timerId) {
-        clearInterval(view.timerId);  // 清除之前的计时器
+        clearInterval(view.timerId);  // clear 清除之前的计时器
     }
-    const updateTimer = ()=>{
-        //let secondsElapsed = 0;
-        if (view.plugin.recorderState === consts.recorderState.recording){
-            const secondsElapsed = (view.recordedTimeTemp + (Date.now()-view.recordStartTime))/1000;
-            el.textContent = `${convertSecondsToTimestamp(secondsElapsed, true)}`;
-        }//secondsElapsed++;
+    const updateTimer = ()=>{        
+        const secondsElapsed = view.pipeline.audioContext.currentTime;
+        el.textContent = `${convertSecondsToTimestamp(secondsElapsed, true)}`;
     }
     view.timerId = setInterval(updateTimer, 1000);
     //console.log(`${view.timerId}`)
@@ -281,5 +273,3 @@ export async function getDevices(): Promise<Map<string, string>> {
         return microphonesMap;
   }
 }
-
-
