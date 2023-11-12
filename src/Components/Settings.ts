@@ -21,8 +21,8 @@ export interface AudioFormat {
 	format: string;
 
 	codec: string;
-	sampleRate: number;
 	bitrate:number;
+	sampleRate?: number;
 	numberOfChannels?: number;
 	bitDepth?:number;
 }

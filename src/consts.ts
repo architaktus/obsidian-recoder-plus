@@ -129,8 +129,10 @@ export enum recorderState {
 export const WEB_CODEC_TO_CODEC_INFO: { 
 	[key: string]: {
 		description: string,
-		matroskaCodec: string,
 		supportFormat: string[],
+		matroskaCodec: string,
+		mp4Codec?: "aac"|"opus",
+		supportbps?: number[],
 	} 
 } = {
 	// .mp3
@@ -160,61 +162,68 @@ export const WEB_CODEC_TO_CODEC_INFO: {
 		supportFormat: ['flac', 'mkv'],//'opus',
 	},
 
-	// PCM 编码
+	// PCM 编码,
+	// mkv支持，但包进这套娃里也太蠢了。
 	// Matroska 小端格式
 	"pcm-u8": {
-		description: 'pcm 8位 编码',
+		description: 'pcm 8位无符号整数音频',
 		matroskaCodec: 'A_PCM/INT/LIT',
-		supportFormat: ['wav', 'mkv'],
+		supportFormat: ['wav'],//,'mkv'
 	},
 	"pcm-s16": {
 		description: 'pcm 16位 整数编码',
 		matroskaCodec: 'A_PCM/INT/LIT',
-		supportFormat: ['wav', 'mkv'],
+		supportFormat: ['wav'],//,'mkv'
 	},
+	/* 24位整数音频 不常用，且js没有原生24位整数类型，因此暂不纳入
 	"pcm-s24": {
 		description: 'pcm 24位 整数编码',
 		matroskaCodec: 'A_PCM/INT/LIT',
-		supportFormat: ['wav', 'mkv'],
-	},
+		supportFormat: ['wav'],//,'mkv'
+	},*/
 	"pcm-s32": {
 		description: 'pcm 32位 整数编码',
 		matroskaCodec: 'A_PCM/INT/LIT',
-		supportFormat: ['wav', 'mkv'],
+		supportFormat: ['wav'],//,'mkv'
 	},
 	// Matroska 浮点       
 	"pcm-f32": {
-		description: 'pcm 32位 浮点编码',
+		description: 'pcm 32位 非平面浮点编码',
 		matroskaCodec: 'A_PCM/FLOAT/IEEE',
-		supportFormat: ['wav', 'mkv'],
+		supportFormat: ['wav'],//,'mkv'
 	},
 	// 非线性
 	"alaw": {
 		description: '',
 		matroskaCodec: 'A_MS/ACM',
-		supportFormat: ['wav', 'mkv'],
+		supportFormat: ['wav'],//,'mkv'
 	},
 	"ulaw": {
 		description: '',
 		matroskaCodec: 'A_MS/ACM',
-		supportFormat: ['wav', 'mkv'],
+		supportFormat: ['wav'],//,'mkv'
 	},
   
 	// AAC 编码
-	"mp4a.40.02": {
+	"mp4a.40.2": {
 		description: '',
 		matroskaCodec: 'A_AAC/MPEG4/LC',
 		supportFormat: ['m4a', 'mkv'],
+		supportbps:[96000, 128000, 160000, 192000],
 	},
-	"mp4a.40.05": {
+	"mp4a.40.5": {
 		description: '',
 		matroskaCodec: 'A_AAC/MPEG4/LC/SBR',
 		supportFormat: ['m4a', 'mkv'],
+		mp4Codec:'aac',
+		supportbps:[96000, 128000, 160000, 192000],
 	},
 	"mp4a.67": {
 		description: '',
 		matroskaCodec: 'A_AAC/MPEG2/LC',
-		supportFormat: ['m4a', 'mkv'],
+		mp4Codec:'aac',
+		supportFormat: ['m4a', 'mkv'],		
+		supportbps:[96000, 128000, 160000, 192000],
 	},
 }
 
@@ -229,7 +238,9 @@ export const FORMAT_TO_WEB_CODEC_MAP = createFormatToCodecMap(WEB_CODEC_TO_CODEC
  */
 export const AUDIO_BITS_PER_SECOND = new Map<string,number>([
     ['kbps 64', 64000],
+	['kbps 96', 96000],
     ['kbps 128', 128000],
+	['kbps 160', 160000],
     ['kbps 192', 192000],
     ['kbps 320', 320000],
     ['kbps 512', 512000],

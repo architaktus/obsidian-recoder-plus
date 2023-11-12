@@ -14,6 +14,11 @@ This plugin provide a better recorder in Obsidian
 - (upcoming) encode type & file type as wish
 - (upcoming) pin timestamps while recording
 
+## Supported Codecs/File Formats:
+- aac/m4a
+- opus&vorbis/webM
+- pcm/wav
+
 ## Demo
 TODO
 

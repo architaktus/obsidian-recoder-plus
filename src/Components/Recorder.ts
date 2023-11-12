@@ -1,8 +1,8 @@
 import { ItemView, WorkspaceLeaf,MarkdownView,Notice, TFile, TFolder, FileSystemAdapter } from "obsidian";
 import { join, normalize } from "path";
+import { WaveFile } from "wavefile";
 
 //import * as WebMMuxer from 'webm-muxer'; //https://github.com/Vanilagy/webm-muxer
-import { Muxer, ArrayBufferTarget } from 'webm-muxer';//FileSystemWritableFileStreamTarget
 //import fixWebmMetaInfo  from "@w-xuefeng/fix-webm-metainfo";
 
 import RecorderPlusPlugin from "src/main";
@@ -12,7 +12,6 @@ import * as utl from "./utils";
 import { CapturePipeline } from "./CapturePipeline";
 import * as uis from "./UI&Menu/uiWidgets";
 import { AudioFormat } from "./Settings";
-import { webcrypto } from "crypto";
 
 
 
@@ -21,12 +20,9 @@ import { webcrypto } from "crypto";
  */
 export class RecorderView extends ItemView {
     plugin: RecorderPlusPlugin
-    selectedMicrophoneId: string = null;
-    selectedAudioBitsperSec: number = 320000;
-    
+    selectedMicrophoneId: string = 'default';
+    //selectedAudioBitsperSec: number = 320000;
     currentRecordingFileName: string;
-
-
     pipeline: CapturePipeline=null;
 
     //Interval Ids
@@ -44,9 +40,12 @@ export class RecorderView extends ItemView {
     audioFormat: AudioFormat = {
         format: 'webm', 
         codec:'opus',
-        sampleRate: 44100,
         bitrate: 320000,
     };
+
+    //for PCM recording
+    //@ts-ignore
+    audioDataBuffer = [];
 
     constructor(
         plugin: RecorderPlusPlugin,
@@ -131,15 +130,17 @@ function createGeneralTab(plugin: RecorderPlusPlugin, view: RecorderView, parent
                 case consts.recorderState.closed:                   
                     try {                                            
                         // use WebCodecs method
-                        view.pipeline = new CapturePipeline(
-                            view,
-                            view.selectedMicrophoneId,
-                            view.audioFormat,
-                        )
+                        view.pipeline = new CapturePipeline(view)
                         //view.pipeline.onrawdata
                         view.pipeline.onencoded = async (buffer) => {
                             saveRecord(view, buffer, true)
                             console.log('buffer encoded')
+                        }
+                        if(view.audioFormat.format === 'wav'){
+                            view.pipeline.onrawdata = async (audioData) => {
+                                const audioSampleArray = utl.handleAudioRaw(audioData, view.audioFormat);
+                                view.audioDataBuffer.push(audioSampleArray);
+                            }
                         }
                         await view.pipeline.connect();
                     }catch(error) {
@@ -150,6 +151,10 @@ function createGeneralTab(plugin: RecorderPlusPlugin, view: RecorderView, parent
                 case consts.recorderState.running:
                     view.pipeline.pause();
                     new Notice('Record paused', consts.SUCCESS_NOTICE_TIMEOUT); 
+
+                    if(view.audioFormat.format === 'wav'){
+                        saveWaveFile(view, false);
+                    }
                     break;
                 case consts.recorderState.suspend:
                     view.pipeline.resume();                        
@@ -165,14 +170,13 @@ function createGeneralTab(plugin: RecorderPlusPlugin, view: RecorderView, parent
     //stopRecord.setAttribute("disabled", "true");
     stopRecord.onclick = async () => {
             if (!view.plugin.recorderState || view.plugin.recorderState === consts.recorderState.closed){
-                return;
+                //return;
             } else {                
                 await view.pipeline.close();
-
-                updateRecordButtonTextBasedOnState(view.plugin.recorderState, recordButton);
-                updateRecordstateText(view.plugin.recorderState, recordState);
-                updateTimerShowState(view, view.plugin.recorderState, recordTimer);
             } 
+            updateRecordButtonTextBasedOnState(view.plugin.recorderState, recordButton);
+            updateRecordstateText(view.plugin.recorderState, recordState);
+            updateTimerShowState(view, view.plugin.recorderState, recordTimer);
         }   
 
         //TODO 放在Viewer的最下端，即作为各个Tab的父级的兄弟节点 bottom=0
@@ -227,31 +231,7 @@ async function createAdvanceTab(view: RecorderView, parent: HTMLDivElement){
 
     createSelectCodec(
         (codec:string)=>{
-            view.audioFormat.codec = codec;
-            setBitDepthFromCodec(view.audioFormat, codec);
-
-            const selectFileFormatEl = document.querySelector('#drop-list__file-format') as HTMLSelectElement;
-            if(!consts.WEB_CODEC_TO_CODEC_INFO[codec].supportFormat.includes(view.audioFormat.format)){
-                view.audioFormat.format = consts.WEB_CODEC_TO_CODEC_INFO[codec].supportFormat[0]
-                selectFileFormatEl.value = view.audioFormat.format;
-            }
-
-            // query all options in format drop list
-            const options = selectFileFormatEl.querySelectorAll('option');
-            options.forEach((option)=>{
-                // 移除class
-                option.classList.remove('active-selection', 'deactive-selection');
-
-                // support/ unsupport ?
-                const isSupported = consts.WEB_CODEC_TO_CODEC_INFO[codec].supportFormat.some(format => option.id === `drop-list__file-format__item-${format}`);
-
-                // distinguish formats support/ unsupport
-                if (isSupported) {
-                    option.classList.add('active-selection');
-                } else {
-                    option.classList.add('deactive-selection');
-                }
-            });
+            onCodecValueChange(view, codec);
         },
         configDiv,
         view.audioFormat.codec,
@@ -259,35 +239,109 @@ async function createAdvanceTab(view: RecorderView, parent: HTMLDivElement){
 
     createSelectFileFormat(
         (format)=>{
-            view.audioFormat.format = format;
-
-            const selectCodecEl = document.querySelector('#drop-list__codec') as HTMLSelectElement;
-            if(!consts.FORMAT_TO_WEB_CODEC_MAP[format].includes(view.audioFormat.codec)){
-                view.audioFormat.codec = consts.FORMAT_TO_WEB_CODEC_MAP[format][0];
-                selectCodecEl.value = view.audioFormat.codec;
-            }
-
-            // query all options in codec drop list
-            const options = selectCodecEl.querySelectorAll('option');
-            options.forEach(option=>{
-                // 移除class
-                option.classList.remove('active-selection', 'deactive-selection');
-                
-                // codecs support/ unsupport?
-                const isSupported = consts.FORMAT_TO_WEB_CODEC_MAP[format].some(codec => option.id === `drop-list__codec__item-${codec}`);
-                
-                // distinguish formats support/ unsupport
-                if (isSupported) {
-                    option.classList.add('active-selection');
-                } else {
-                    option.classList.add('deactive-selection');
-                }
-            });
+            onCodecFileFormatChange(view, format);
         },
         configDiv,
         view.audioFormat.format
     );
 }
+
+
+
+function onCodecFileFormatChange(view: RecorderView, format:string){
+    view.audioFormat.format = format;
+
+    const selectCodecEl = document.querySelector('#drop-list__codec') as HTMLSelectElement;
+    if(!consts.FORMAT_TO_WEB_CODEC_MAP[format].includes(view.audioFormat.codec)){
+        view.audioFormat.codec = consts.FORMAT_TO_WEB_CODEC_MAP[format][0];
+        selectCodecEl.value = view.audioFormat.codec;
+        onCodecValueChange(view, view.audioFormat.codec)
+    }
+
+    // query all options in codec drop list
+    const options = selectCodecEl.querySelectorAll('option');
+    options.forEach(option=>{
+        // 移除class
+        option.classList.remove('active-selection', 'deactive-selection');
+        
+        // codecs support/ unsupport?
+        const isSupported = consts.FORMAT_TO_WEB_CODEC_MAP[format].some(codec => option.id === `drop-list__codec__item-${codec}`);
+        
+        // distinguish formats support/ unsupport
+        addClassForOption (option, isSupported);
+    });
+}
+
+
+
+
+function onCodecValueChange(view: RecorderView, codec:string){
+    view.audioFormat.codec = codec;
+    // check if bitDepth is needed
+    setBitDepthFromCodec(view.audioFormat, codec);
+
+    //check if file format match
+    const selectFileFormatEl = document.querySelector('#drop-list__file-format') as HTMLSelectElement;
+    if(!consts.WEB_CODEC_TO_CODEC_INFO[codec].supportFormat.includes(view.audioFormat.format)){
+        view.audioFormat.format = consts.WEB_CODEC_TO_CODEC_INFO[codec].supportFormat[0]
+        selectFileFormatEl.value = view.audioFormat.format;
+        onCodecFileFormatChange(view, view.audioFormat.format);
+    }
+    // query all options in format drop list
+    const formatOptions = selectFileFormatEl.querySelectorAll('option');
+    formatOptions.forEach((option)=>{
+        // 移除class
+        option.classList.remove('active-selection', 'deactive-selection');
+
+        // support/ unsupport ?
+        const isSupported = consts.WEB_CODEC_TO_CODEC_INFO[codec].supportFormat.some(format => option.id === `drop-list__file-format__item-${format}`);
+
+        // distinguish formats support/ unsupport
+        addClassForOption (option, isSupported);
+    });
+
+    // check if bps match
+    const specificBps = consts.WEB_CODEC_TO_CODEC_INFO[codec].supportbps;
+    if (specificBps){
+        const selectbitRateEl = document.querySelector('#drop-list__audio-bitrate') as HTMLSelectElement;
+        //check if current
+        const selectbitRate = Number(selectbitRateEl.value);
+        if(!specificBps.includes(selectbitRate)){
+            //选择最大最小
+            if(selectbitRate > specificBps[specificBps.length - 1]){
+                view.audioFormat.bitrate = specificBps[specificBps.length - 1];
+                selectbitRateEl.value = specificBps[specificBps.length - 1].toString();
+            } else if (selectbitRate < specificBps[0]) {
+                view.audioFormat.bitrate = specificBps[0];
+                selectbitRateEl.value = specificBps[0].toString();
+            }
+        };
+
+        const bitRateOptions = selectbitRateEl.querySelectorAll('option');
+        bitRateOptions.forEach((option)=>{
+            // 移除class
+            option.classList.remove('active-selection', 'deactive-selection');
+
+            // support/ unsupport ?
+            const isSupported = specificBps.some(supportbps => option.value === supportbps.toString());
+            // distinguish formats support/ unsupport
+            addClassForOption (option, isSupported);
+        });
+    }
+}
+
+
+function addClassForOption (option: HTMLElement, isSupported: boolean){
+    if (isSupported) {
+        option.classList.add('active-selection');
+    } else {
+        option.classList.add('deactive-selection');
+    }
+}
+
+
+
+
 
 /**
  * if is pcm codec, set bitDepth
@@ -324,7 +378,7 @@ function createSelectMc(optionsMap: Map<string, string>, callback:(selected:stri
             const defaultLabel = optionsMap.get('default').replace('Default - ', '');
             defaultOptionEl.textContent = `${defaultLabel} (Default)`;
             defaultOptionEl.value= 'default'; 
-            defaultOptionEl.text= `default output method`; 
+            defaultOptionEl.title= `default output method`; 
             defaultOptionEl.selected = true;
             selectEl.appendChild(defaultOptionEl);
 
@@ -377,7 +431,8 @@ function createSelectMc(optionsMap: Map<string, string>, callback:(selected:stri
  */
 function createSelectAudioBitperSec(callback:(selected:string)=>void, parent?:HTMLElement, selectedValue?:number): HTMLSelectElement{
 	const selectEl = document.createElement('select');
-        
+    selectEl.id = "drop-list__audio-bitrate";
+
     for (let rate of consts.AUDIO_BITS_PER_SECOND.keys()){
         const optionValue = consts.AUDIO_BITS_PER_SECOND.get(rate);       
         const optionEl = document.createElement('option');
@@ -401,11 +456,17 @@ function createSelectAudioBitperSec(callback:(selected:string)=>void, parent?:HT
 
 function createSelectSampleRate(callback:(selected:string)=>void, parent?:HTMLElement, selectedValue?:number): HTMLSelectElement{
 	const selectEl = document.createElement('select');
-        
+    //default option
+    const defaultOptionEl = document.createElement('option');
+    defaultOptionEl.textContent = 'default as input';
+    defaultOptionEl.value= undefined;
+    selectEl.appendChild(defaultOptionEl);
+
     for (let rate of consts.AUDIO_SAMPLE_RATE.keys()){
-        const optionValue = consts.AUDIO_SAMPLE_RATE.get(rate);       
+        const optionValue = consts.AUDIO_SAMPLE_RATE.get(rate);
         const optionEl = document.createElement('option');
         optionEl.textContent = rate;
+        optionEl.title = 'note that some encoder cannot modify the sample rate directly!'
         optionEl.value= optionValue.toString();
         selectEl.appendChild(optionEl);
         if(optionValue === selectedValue){
@@ -542,7 +603,41 @@ function updateTimerShowState(view: RecorderView, state: number, timerEl: HTMLEl
 
 
 
-//TODO 改写成移动端兼容的版本（还是得考虑直接用Ob解决）
+//////////////////////////////////////////////////////////
+//save
+export function saveWaveFile (view: RecorderView, isEnd:boolean){
+    //拼接成一个数组
+    let allSamples = [].concat(...view.audioDataBuffer);
+    // WaveFile 实例
+    let wav = new WaveFile();
+
+    //新WAV 文件
+    //通道数、采样率、位深度、样本数据
+    const {numberOfChannels, sampleRate, codec} = view.audioFormat
+    const bitDepth = getBitDepthFromCodec(codec);
+    wav.fromScratch(numberOfChannels, sampleRate, bitDepth, allSamples);//'32f'
+
+    let wavBuffer = wav.toBuffer();
+    saveRecord(view, wavBuffer.buffer,isEnd);
+}
+
+function getBitDepthFromCodec(codec:string){
+    let bitDepth='';
+    if(codec.includes('pcm')){
+        if(codec === 'pcm-f32'){
+            bitDepth = '32f';
+        } else {
+            bitDepth = codec.slice(5).toString();
+        }
+    } else {
+        new Notice(`![ERROR] unexpected PCM codec, bitDepth cannot specified.`)
+    }
+    return bitDepth;
+}
+
+
+
+
 /**
  * save
  * @param view 

@@ -1,9 +1,10 @@
 //import * as WebMMuxer from 'webm-muxer'; //https://github.com/Vanilagy/webm-muxer
-import { Muxer, ArrayBufferTarget, FileSystemWritableFileStreamTarget  } from 'webm-muxer';
+import { Muxer as WebmMuxer, ArrayBufferTarget as WebmArrayBufferTarget } from 'webm-muxer';
+import { Muxer as Mp4Muxer, ArrayBufferTarget as Mp4ArrayBufferTarget } from 'mp4-muxer';
 import dayjs from "dayjs";
 
 import { WEB_CODEC_TO_CODEC_INFO, recorderState } from 'src/consts';
-import { RecorderView } from './Recorder';
+import { RecorderView, saveWaveFile } from './Recorder';
 import { AudioFormat } from './Settings';
 import { Notice } from 'obsidian';
 import { handleRecordingFileName } from './utils';
@@ -31,7 +32,7 @@ export class CapturePipeline {
     }*/
 //AudioEncoder
     encoder:AudioEncoder;
-    muxer: Muxer<ArrayBufferTarget>;
+    muxer: WebmMuxer<WebmArrayBufferTarget> | Mp4Muxer<Mp4ArrayBufferTarget>;
     onrawdata: (audioData: AudioData) => void;
     onencoded: (buffer: ArrayBuffer) => void; // onencoded: (chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata) => void;//EncodingMetadata
 //callback controlls:
@@ -47,60 +48,79 @@ export class CapturePipeline {
      *      bitrate/比特率/bps: 每秒传输的比特数 - 音频的空间分辨率
      */
     constructor(
-        view:RecorderView,
-        selecteddeviceId:string='default',        
-        audioFormat: AudioFormat
+        view:RecorderView
     ){        
         this.view = view;
         this.onrawdata = null;
         this.onencoded = null;
         this.onconnect = null;
-        this.selecteddeviceId = selecteddeviceId;
-        this.audioFormat = audioFormat;
+        this.selecteddeviceId = view.selectedMicrophoneId;
+        this.audioFormat = view.audioFormat;
     }
 
 
     async connect(){
         // AudioContext setup
-            // audioContext
-            this.audioContext = new (AudioContext)({
-                sampleRate: this.audioFormat.sampleRate,
-                latencyHint: 'interactive'
-            });
+        // audioContext
+        this.audioContext = new (AudioContext)({
+            sampleRate: this.audioFormat.sampleRate,
+            latencyHint: 'interactive'
+        });
 
-            // update the global recorder state
-            this.audioContext.onstatechange = () => this.handleStateChange();
-            
-            // source
-            const mediaStream = navigator.mediaDevices.getUserMedia(
-                {audio: { deviceId: this.selecteddeviceId}}
-            )
-            this.mediaStream = await mediaStream;
-            const audioTracks = this.mediaStream.getAudioTracks();
-            if (audioTracks.length > 0) {
-                this.view.audioFormat.numberOfChannels = audioTracks[0].getSettings().channelCount;
+        // update the global recorder state
+        this.audioContext.onstatechange = () => this.handleStateChange();
+        
+        // source
+        const mediaStream = navigator.mediaDevices.getUserMedia(
+            {audio: { deviceId: this.selecteddeviceId}}
+        )
+        this.mediaStream = await mediaStream;
+        const { channelCount, sampleRate } = this.mediaStream.getAudioTracks()[0].getSettings();
+        this.view.audioFormat.sampleRate = sampleRate;
+        if (!this.view.audioFormat.numberOfChannels){
+            this.view.audioFormat.numberOfChannels= channelCount;
+        }
+
+        this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
+
+        // destination
+        this.destination = this.audioContext.createMediaStreamDestination();
+        this.destination.channelCount = this.view.audioFormat.numberOfChannels;
+
+        // connect
+        this.source.connect(this.destination);
+
+        if(this.view.audioFormat.format !== 'wav'){
+            // Packager
+            switch(this.audioFormat.format){
+                case 'mkv':
+                case 'webm':
+                    this.muxer = new WebmMuxer({
+                        target: new WebmArrayBufferTarget(),
+                        audio: {
+                            codec: WEB_CODEC_TO_CODEC_INFO[this.audioFormat.codec].matroskaCodec,
+                            sampleRate:this.audioFormat.sampleRate, 
+                            numberOfChannels:this.audioFormat.numberOfChannels, 
+                            bitDepth:this.audioFormat.bitDepth?this.audioFormat.bitDepth:undefined
+                        },
+                        firstTimestampBehavior: 'offset',
+                    });
+                    break;
+                case 'm4a':
+                    this.muxer = new Mp4Muxer({
+                        target: new Mp4ArrayBufferTarget(),
+                        audio: {
+                            codec: WEB_CODEC_TO_CODEC_INFO[this.audioFormat.codec].mp4Codec,
+                            sampleRate:this.audioFormat.sampleRate, 
+                            numberOfChannels:this.audioFormat.numberOfChannels, 
+                        },
+                        fastStart: 'in-memory',
+                        firstTimestampBehavior: 'offset',
+                    });
+                    break;
             }
-            
-            this.source = this.audioContext.createMediaStreamSource(this.mediaStream);
 
-            // destination
-            this.destination = this.audioContext.createMediaStreamDestination();
-            this.destination.channelCount = this.view.audioFormat.numberOfChannels;
-
-            // connect
-            this.source.connect(this.destination)
-
-        // Encoder
-            this.muxer = new Muxer({
-                target: new ArrayBufferTarget(),
-                audio: {
-                    codec: WEB_CODEC_TO_CODEC_INFO[this.audioFormat.codec].matroskaCodec,
-                    sampleRate:this.audioFormat.sampleRate, 
-                    numberOfChannels:this.audioFormat.numberOfChannels, 
-                    bitDepth:this.audioFormat.bitDepth?this.audioFormat.bitDepth:undefined
-                },
-                firstTimestampBehavior: 'offset'
-            });
+            //encoder
             this.encoder = new AudioEncoder({
                 output: (chunk, metadata) => this.muxer.addAudioChunk(chunk, metadata),//this.handleEncodedData.bind(this),
                 error: this.handleEncodingError.bind(this)
@@ -111,17 +131,18 @@ export class CapturePipeline {
                 sampleRate: this.audioFormat.sampleRate,
                 bitrate:this.audioFormat.bitrate,
             })
+        }
 
         // callback
         this.onconnect? this.onconnect():null
 
         // audioTrackProcessor: stream audioData -> encode
-            this.audioTrackProcessor = new MediaStreamTrackProcessor({
-                track: this.destination.stream.getAudioTracks()[0]
-            })
-            this.audioTrackProcessor.readable.pipeTo(new WritableStream({
-                write: this.handleRawData.bind(this)
-            }))        
+        this.audioTrackProcessor = new MediaStreamTrackProcessor({
+            track: this.destination.stream.getAudioTracks()[0]
+        })
+        this.audioTrackProcessor.readable.pipeTo(new WritableStream({
+            write: this.handleRawData.bind(this)
+        }))        
 
         //
 
@@ -133,10 +154,12 @@ export class CapturePipeline {
         this.audioContext.suspend();
         //this.recordedTimeOnPause = dayjs().valueOf();   
 
-        await this.encoder.flush();       
-        //this.muxer.finalize(); //cannot finalize here, as it lead to the end of recording
-        let { buffer } = this.muxer.target; //TODO 看看如果不finalize 是否可以导出buffer保存
-        this.onencoded(buffer);
+        if(this.encoder){
+            await this.encoder.flush();       
+            //this.muxer.finalize(); //cannot finalize here, as it lead to the end of recording
+            let { buffer } = this.muxer.target; //TODO 看看如果不finalize 是否可以导出buffer保存
+            this.onencoded(buffer);
+        }
     }
 
     resume(){
@@ -156,12 +179,18 @@ export class CapturePipeline {
         this.destination=null;
 
         //save file
-        await this.encoder.flush();
-        this.muxer.finalize();
-        let { buffer } = this.muxer.target;
-        this.onencoded(buffer);
-        this.encoder=null;
-        this.muxer=null;
+        if(this.encoder){
+            await this.encoder.flush();
+            this.muxer.finalize();
+            let { buffer } = this.muxer.target;
+            this.onencoded(buffer);
+            this.encoder=null;
+            this.muxer=null;
+        }
+
+        if(this.audioFormat.format === 'wav'){
+            saveWaveFile(this.view, true);
+        }
 
         //close timer/clear time
         this.view.currentRecordingFileName = null;
@@ -191,12 +220,17 @@ export class CapturePipeline {
         new Notice ('Recording Error');
     }
   
-    handleRawData(audioData:AudioData){
-        if(this.onrawdata){
-            this.onrawdata(audioData)
+    async handleRawData(audioData:AudioData){
+        //PCM
+        if(this.audioFormat.format === 'wav'){
+            this.onrawdata(audioData); //f32-planar
+        }         
+        //非PCM
+        else {
+            this.encoder.encode(audioData);
         }
-        this.encoder.encode(audioData)
-        audioData.close()
+        //console.log(`format ${audioData.format}, duration: ${audioData.duration}, frames: ${audioData.numberOfFrames}, sampleRate: ${audioData.sampleRate}, timestamp: ${audioData.timestamp}`)
+        audioData.close();
     }
 
     handleStateChange(){
