@@ -45,7 +45,7 @@ export class RecorderView extends ItemView {
 
     //for PCM recording
     audioDataBuffer: Array<Uint8Array | Int16Array | Int32Array | Float32Array>;
-    audioDataLength:number=0;
+    //audioDataLength:number=0;
 
     constructor(
         plugin: RecorderPlusPlugin,
@@ -137,13 +137,13 @@ function createGeneralTab(plugin: RecorderPlusPlugin, view: RecorderView, parent
                         }
                         if(view.audioFormat.format === 'wav'){
                             view.audioDataBuffer = [];
-                            view.audioDataLength =0;
+                            //view.audioDataLength =0;
                             const pcmEncoder = utl.getPCMMappingFormat(view.audioFormat);
                             view.pipeline.onrawdata = async (audioData) => {
                                 const audioSampleArray = utl.handleAudioRaw(audioData, view.audioFormat, pcmEncoder);
                                 //if(audioSampleArray.byteLength > 0){
                                     view.audioDataBuffer.push(audioSampleArray);
-                                    view.audioDataLength = view.audioDataLength + audioSampleArray.byteLength;
+                                    //view.audioDataLength = view.audioDataLength + audioSampleArray.byteLength;
                                 //}
                             }
                         }

@@ -690,3 +690,45 @@ export function getEncodeFormat(audioFormat: AudioFormat): ((bytes: Float32Array
             }
     }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+            // 创建一个用于收集音频数据片段的数组
+            const drawData = this.onrawdata;
+            // 创建一个TransformStream来处理PCM数据并生成WAV格式
+            const transformer = new TransformStream({
+                async transform(audioData, controller) {
+
+                // 将音频数据片段添加到数组中
+                //audioChunks.push(audioData);
+                drawData(audioData);
+                // 将PCM数据转换为WAV格式
+                //const wavData = convertPCMToWAV(pcmData);
+            
+                // 仅传递音频数据，不做处理
+                controller.enqueue(audioData);
+                },
+            });
+
+            this.audioTrackProcessor.readable
+            .pipeThrough(transformer)
+            .pipeTo(new WritableStream({
+                // 在结束时处理累积的音频数据
+                close() {
+                  // 将所有音频数据片段合并并转换为WAV格式
+                  //const completeAudio = combineAudioChunks(audioChunks);
+                  //const wavData = convertChunksToWAV(completeAudio);
+                }
+              }));
+            /*this.audioTrackProcessor.readable.pipeTo(new WritableStream({
+                write: this.rawDataToPCM.bind(this)
+            }))*/ 

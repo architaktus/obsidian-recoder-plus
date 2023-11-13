@@ -65,7 +65,6 @@ export class CapturePipeline {
             this.audioContext.close();
             this.stopStream();
         }
-
         // AudioContext setup
         this.audioContext = new (AudioContext)({
             sampleRate: this.audioFormat.sampleRate,
@@ -127,7 +126,14 @@ export class CapturePipeline {
 
             //encoder
             this.encoder = new AudioEncoder({
-                output: (chunk, metadata) => this.muxer.addAudioChunk(chunk, metadata),//this.handleEncodedData.bind(this),
+                output: (chunk, metadata) =>{
+                     this.muxer.addAudioChunk(chunk, metadata)                     
+                     //const data = new ArrayBuffer(chunk.byteLength);
+                     //chunk.copyTo(data);
+                     //const uint8View = new Uint8Array(data);
+                    //console.log('音频样本:', uint8View.slice(0, 10));
+
+                    },//this.handleEncodedData.bind(this),
                 error: this.handleEncodingError.bind(this)
             })  
             this.encoder.configure({

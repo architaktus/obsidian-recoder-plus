@@ -310,7 +310,7 @@ export function createFormatToCodecMap(
  * @returns interleaved pcm data array (Float32Array)
  */
 export function handleAudioRaw (audioData: AudioData, audioFormat: AudioFormat, pcmEncoder: (floatSample: number) => number){
-
+    console.log(`Frames: ${audioData.numberOfFrames}, bitrate: ${audioData.sampleRate * audioFormat.bitDepth*audioData.numberOfChannels}`)
     if (audioData.format !== 'f32-planar'){
         console.log(`![ERROR] unexpected audio raw Data Format: ${audioData.format}`)
         return;
@@ -325,7 +325,7 @@ export function handleAudioRaw (audioData: AudioData, audioFormat: AudioFormat, 
         // each channel: one Plane https://www.w3.org/TR/webcodecs/#enumdef-audiosampleformat
         const planarDataOnPlane = new Float32Array(audioData.allocationSize({planeIndex: channel}) / Float32Array.BYTES_PER_ELEMENT);
         audioData.copyTo(planarDataOnPlane, {planeIndex: channel});
-        //console.log('原始音频样本:', planarDataOnPlane.slice(0, 10));
+        //console.log('原始音频样本:', planarDataOnPlane.slice(0, 20));
 
         for (let i = 0; i < numberOfFrames; i++) {
             let floatSample  = planarDataOnPlane[i];//[channel * numberOfFrames + i];
@@ -392,7 +392,7 @@ export function getPCMMappingFormat(audioFormat: AudioFormat): ((floatSample: nu
 
 
 
-
+//https://github.com/Experience-Monks/audiobuffer-to-wav/blob/master/index.js
 //https://github.com/2fps/recorder/blob/master/src/transform/transform.ts#L15
 /**
  * 在data中的offset位置开始写入str字符串
