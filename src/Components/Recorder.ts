@@ -44,8 +44,8 @@ export class RecorderView extends ItemView {
     };
 
     //for PCM recording
-    //@ts-ignore
-    audioDataBuffer = [];
+    audioDataBuffer: Array<Uint8Array | Int16Array | Int32Array | Float32Array>;
+    audioDataLength:number=0;
 
     constructor(
         plugin: RecorderPlusPlugin,
@@ -131,15 +131,20 @@ function createGeneralTab(plugin: RecorderPlusPlugin, view: RecorderView, parent
                     try {                                            
                         // use WebCodecs method
                         view.pipeline = new CapturePipeline(view)
-                        //view.pipeline.onrawdata
                         view.pipeline.onencoded = async (buffer) => {
                             saveRecord(view, buffer, true)
                             console.log('buffer encoded')
                         }
                         if(view.audioFormat.format === 'wav'){
+                            view.audioDataBuffer = [];
+                            view.audioDataLength =0;
+                            const pcmEncoder = utl.getPCMMappingFormat(view.audioFormat);
                             view.pipeline.onrawdata = async (audioData) => {
-                                const audioSampleArray = utl.handleAudioRaw(audioData, view.audioFormat);
-                                view.audioDataBuffer.push(audioSampleArray);
+                                const audioSampleArray = utl.handleAudioRaw(audioData, view.audioFormat, pcmEncoder);
+                                //if(audioSampleArray.byteLength > 0){
+                                    view.audioDataBuffer.push(audioSampleArray);
+                                    view.audioDataLength = view.audioDataLength + audioSampleArray.byteLength;
+                                //}
                             }
                         }
                         await view.pipeline.connect();
@@ -514,6 +519,10 @@ function createSelectCodec(callback:(selected:string)=>void, parent?:HTMLElement
 	selectEl.addEventListener('change',async (e)=>{
 		const selected = (e.target as HTMLSelectElement).value;    
         callback(selected);
+        //TODO
+        if(selected.includes('pcm')) {
+            new Notice (`![ERROR] PCM encode currently not available T_T`)
+        }
 	});
 
     parent? parent.appendChild(selectEl): null;
@@ -544,6 +553,9 @@ function createSelectFileFormat(callback:(selected:string)=>void, parent?:HTMLEl
 	selectEl.addEventListener('change',async (e)=>{
 		const selected = (e.target as HTMLSelectElement).value;    
         callback(selected);
+        if(selected === 'wav') {
+            new Notice (`![ERROR] PCM encode currently not available T_T`)
+        }
 	});
 
     //if(oldSelectEl){
@@ -603,9 +615,29 @@ function updateTimerShowState(view: RecorderView, state: number, timerEl: HTMLEl
 
 
 
+
+
 //////////////////////////////////////////////////////////
 //save
-export function saveWaveFile (view: RecorderView, isEnd:boolean){
+/*
+export async function saveWaveFile (view: RecorderView, isEnd:boolean){
+    //拼接成一个数组
+    const wavHead = utl.setWAVHead(view.audioFormat, true, view.audioDataLength);
+    const totalLength = wavHead.byteLength + view.audioDataLength;
+    let combinedBuffer = new ArrayBuffer(totalLength);
+    let combinedView = new Uint8Array(combinedBuffer);
+    combinedView.set(new Uint8Array(wavHead.buffer, wavHead.byteOffset, wavHead.byteLength));
+
+    // 复制 audioDataBuffer 数据
+    let offset = wavHead.byteLength;
+    for (const array of view.audioDataBuffer) {
+        combinedView.set(new Uint8Array(array.buffer, array.byteOffset, array.byteLength), offset);
+        offset += array.byteLength;
+    }
+
+    await saveRecord(view, combinedBuffer,isEnd);
+}*/
+export async function saveWaveFile (view: RecorderView, isEnd:boolean){
     //拼接成一个数组
     let allSamples = [].concat(...view.audioDataBuffer);
     // WaveFile 实例
@@ -615,10 +647,11 @@ export function saveWaveFile (view: RecorderView, isEnd:boolean){
     //通道数、采样率、位深度、样本数据
     const {numberOfChannels, sampleRate, codec} = view.audioFormat
     const bitDepth = getBitDepthFromCodec(codec);
+    console.log(`depth: ${bitDepth}, channel: ${numberOfChannels}`)
     wav.fromScratch(numberOfChannels, sampleRate, bitDepth, allSamples);//'32f'
-
+    console.log('scratch+')
     let wavBuffer = wav.toBuffer();
-    saveRecord(view, wavBuffer.buffer,isEnd);
+    await saveRecord(view, wavBuffer.buffer,isEnd);
 }
 
 function getBitDepthFromCodec(codec:string){

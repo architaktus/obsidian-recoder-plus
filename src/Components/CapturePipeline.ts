@@ -60,8 +60,13 @@ export class CapturePipeline {
 
 
     async connect(){
+        // clear old audioContext if any
+        if (this.audioContext) {
+            this.audioContext.close();
+            this.stopStream();
+        }
+
         // AudioContext setup
-        // audioContext
         this.audioContext = new (AudioContext)({
             sampleRate: this.audioFormat.sampleRate,
             latencyHint: 'interactive'
@@ -131,22 +136,28 @@ export class CapturePipeline {
                 sampleRate: this.audioFormat.sampleRate,
                 bitrate:this.audioFormat.bitrate,
             })
+
+
         }
 
-        // callback
-        this.onconnect? this.onconnect():null
+
 
         // audioTrackProcessor: stream audioData -> encode
         this.audioTrackProcessor = new MediaStreamTrackProcessor({
             track: this.destination.stream.getAudioTracks()[0]
         })
-        this.audioTrackProcessor.readable.pipeTo(new WritableStream({
-            write: this.handleRawData.bind(this)
-        }))        
+        if(this.audioFormat.format === 'wav'){
+            this.audioTrackProcessor.readable.pipeTo(new WritableStream({
+                write: this.rawDataToPCM.bind(this)
+            }))  
+        } else {        
+            this.audioTrackProcessor.readable.pipeTo(new WritableStream({
+                write: this.rawDataToEncode.bind(this)
+            }))  
+        }
 
-        //
-
-
+        // callback
+        this.onconnect? this.onconnect():null
     }
 
     async pause(){
@@ -173,8 +184,7 @@ export class CapturePipeline {
         await this.audioContext.close();
         this.source.disconnect();
         this.audioTrackProcessor=null;
-        this.mediaStream.getTracks().forEach(track => track.stop());
-        this.mediaStream=null;
+        this.stopStream();
         this.source=null;
         this.destination=null;
 
@@ -201,10 +211,7 @@ export class CapturePipeline {
         this.view.selectedMicrophoneId = null;
     }
 
-    handleEncodedData(chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata){//EncodingMetadata
-
-
-        
+    handleEncodedData(chunk: EncodedAudioChunk, metadata: EncodedAudioChunkMetadata){//EncodingMetadata       
 
         /*
         if(this.onencoded){
@@ -219,20 +226,19 @@ export class CapturePipeline {
         this.close();
         new Notice ('Recording Error');
     }
-  
-    async handleRawData(audioData:AudioData){
-        //PCM
-        if(this.audioFormat.format === 'wav'){
-            this.onrawdata(audioData); //f32-planar
-        }         
-        //非PCM
-        else {
-            this.encoder.encode(audioData);
-        }
-        //console.log(`format ${audioData.format}, duration: ${audioData.duration}, frames: ${audioData.numberOfFrames}, sampleRate: ${audioData.sampleRate}, timestamp: ${audioData.timestamp}`)
+
+    //PCM        
+    async rawDataToPCM(audioData:AudioData){
+        this.onrawdata(audioData); //f32-planar                
         audioData.close();
     }
 
+    //非PCM
+    async rawDataToEncode(audioData:AudioData){
+        this.encoder.encode(audioData);
+        //console.log(`format ${audioData.format}, duration: ${audioData.duration}, frames: ${audioData.numberOfFrames}, sampleRate: ${audioData.sampleRate}, timestamp: ${audioData.timestamp}`)
+        audioData.close();
+    }
     handleStateChange(){
         console.log(this.view.plugin.recorderState);
         switch (this.audioContext.state){
@@ -249,6 +255,15 @@ export class CapturePipeline {
                     ${this.view.currentRecordingFileName}.${this.audioFormat.format},\n \
                     with codec ${this.audioFormat.codec}, ${this.audioFormat.bitrate/1000}bps, ${this.audioFormat.sampleRate/1000}kHz, Channel x ${this.audioFormat.numberOfChannels}, bitDepth: ${this.audioFormat.bitDepth?this.audioFormat.bitDepth:"unset"}`);
                 break;
+        }
+    }
+
+
+
+    private stopStream() {
+        if (this.mediaStream && this.mediaStream.getTracks) {
+            this.mediaStream.getTracks().forEach(track => track.stop());
+            this.mediaStream = null;
         }
     }
 }

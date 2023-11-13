@@ -17,7 +17,8 @@ This plugin provide a better recorder in Obsidian
 ## Supported Codecs/File Formats:
 - aac/m4a
 - opus&vorbis/webM
-- pcm/wav
+- pcm/wav (building...)
+- flac/flac (upcoming)
 
 ## Demo
 TODO

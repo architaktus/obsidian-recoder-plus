@@ -143,7 +143,7 @@ export const WEB_CODEC_TO_CODEC_INFO: {
 	},
 
 	// WEBM相关
-	'vorbis': {
+	'vorbis': {//TODO : windows下disable
 		description: 'vorbis',
 		matroskaCodec: 'A_VORBIS',
 		supportFormat: ['webm', 'mkv'],//'ogg',
